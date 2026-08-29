@@ -69,5 +69,15 @@ vim.keymap.set("i", "<A-k>", "<esc><cmd>silent! keepjumps m .-2<cr>==gi", { desc
 -- Visual: move block (1 line or more) — string mapping uses '<,'> marks set on leaving Visual
 -- via :<C-u>, so multi-line selections (e.g. V2j selects 3 lines) move as a whole;
 -- v:count1 handles "2 Alt-j" to move block by 2, silent!+keepjumps suppresses E16 at edges
-vim.keymap.set("v", "<A-j>", ":<C-u>silent! keepjumps execute \"'<,'>move '>+\" . v:count1<cr>gv=gv", { desc = "Move selection down", silent = true })
-vim.keymap.set("v", "<A-k>", ":<C-u>silent! keepjumps execute \"'<,'>move '<-\" . (v:count1 + 1)<cr>gv=gv", { desc = "Move selection up", silent = true })
+vim.keymap.set(
+  "v",
+  "<A-j>",
+  ":<C-u>silent! keepjumps execute \"'<,'>move '>+\" . v:count1<cr>gv=gv",
+  { desc = "Move selection down", silent = true }
+)
+vim.keymap.set(
+  "v",
+  "<A-k>",
+  ":<C-u>silent! keepjumps execute \"'<,'>move '<-\" . (v:count1 + 1)<cr>gv=gv",
+  { desc = "Move selection up", silent = true }
+)
