@@ -19,7 +19,7 @@ local function move_line_down()
   local view = vim.fn.winsaveview()
   vim.cmd("silent! keepjumps execute 'move .+" .. count .. "'")
   pcall(vim.cmd, "undojoin")
-  vim.cmd("silent! normal! ==")
+  vim.cmd("noautocmd silent! normal! ==")
   local new_lnum = cur + count
   local lines = vim.api.nvim_buf_get_lines(0, new_lnum - 1, new_lnum, false)
   local line_len = #(lines[1] or "")
@@ -44,7 +44,7 @@ local function move_line_up()
   local view = vim.fn.winsaveview()
   vim.cmd("silent! keepjumps execute 'move .-" .. (count + 1) .. "'")
   pcall(vim.cmd, "undojoin")
-  vim.cmd("silent! normal! ==")
+  vim.cmd("noautocmd silent! normal! ==")
   local new_lnum = cur - count
   local lines = vim.api.nvim_buf_get_lines(0, new_lnum - 1, new_lnum, false)
   local line_len = #(lines[1] or "")
@@ -60,33 +60,33 @@ end
 vim.keymap.set("n", "<A-j>", move_line_down, { desc = "Move line down", silent = true })
 vim.keymap.set("n", "<A-k>", move_line_up, { desc = "Move line up", silent = true })
 
--- Insert: move current line, stay in insert (supports v:count, consistent with normal)
+-- Insert: move current line, stay in insert (supports v:count, noautocmd suppresses brace match flash)
 vim.keymap.set(
   "i",
   "<A-j>",
-  "<esc><cmd>silent! keepjumps execute 'm .+' . v:count1<cr>==gi",
+  "<esc><cmd>silent! keepjumps execute 'm .+' . v:count1<cr><cmd>noautocmd silent! normal! ==<cr>gi",
   { desc = "Move line down", silent = true }
 )
 vim.keymap.set(
   "i",
   "<A-k>",
-  "<esc><cmd>silent! keepjumps execute 'm .-' . (v:count1+1)<cr>==gi",
+  "<esc><cmd>silent! keepjumps execute 'm .-' . (v:count1+1)<cr><cmd>noautocmd silent! normal! ==<cr>gi",
   { desc = "Move line up", silent = true }
 )
 
 -- Visual: move block (1 line or more) — string mapping uses '<,'> marks set on leaving Visual
 -- via :<C-u>, so multi-line selections (e.g. V2j selects 3 lines) move as a whole;
--- v:count1 handles "2 Alt-j" to move block by 2, silent!+keepjumps suppresses E16 at edges
+-- v:count1 handles "2 Alt-j" to move block by 2, silent!+keepjumps suppresses E16, noautocmd suppresses brace flash
 vim.keymap.set(
   "v",
   "<A-j>",
-  ":<C-u>silent! keepjumps execute \"'<,'>move '>+\" . v:count1<cr>gv=gv",
+  ":<C-u>silent! keepjumps execute \"'<,'>move '>+\" . v:count1<cr>:noautocmd silent! normal! gv=gv<cr>",
   { desc = "Move selection down", silent = true }
 )
 vim.keymap.set(
   "v",
   "<A-k>",
-  ":<C-u>silent! keepjumps execute \"'<,'>move '<-\" . (v:count1 + 1)<cr>gv=gv",
+  ":<C-u>silent! keepjumps execute \"'<,'>move '<-\" . (v:count1 + 1)<cr>:noautocmd silent! normal! gv=gv<cr>",
   { desc = "Move selection up", silent = true }
 )
 
