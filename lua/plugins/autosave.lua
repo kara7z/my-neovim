@@ -11,7 +11,10 @@ return {
       cancel_deferred_save = { "InsertEnter" },
     },
     condition = function(buf)
-      return vim.bo[buf].modifiable
+      if buf == 0 then
+        buf = vim.api.nvim_get_current_buf()
+      end
+      return vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].modifiable and not vim.bo[buf].readonly
     end,
     write_all_buffers = false,
     debounce_delay = 1000,

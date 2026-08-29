@@ -81,3 +81,9 @@ vim.keymap.set(
   ":<C-u>silent! keepjumps execute \"'<,'>move '<-\" . (v:count1 + 1)<cr>gv=gv",
   { desc = "Move selection up", silent = true }
 )
+
+-- Ctrl-z Undo / Ctrl-y Redo (GUI style) — v covers visual+select, no need for separate x
+vim.keymap.set({ "n", "v" }, "<C-z>", "u", { desc = "Undo", silent = true })
+vim.keymap.set("i", "<C-z>", "<C-o>u", { desc = "Undo", silent = true })
+vim.keymap.set({ "n", "v" }, "<C-y>", "<C-r>", { desc = "Redo", silent = true })
+vim.keymap.set("i", "<C-y>", "<C-o><C-r>", { desc = "Redo", silent = true })
