@@ -18,7 +18,7 @@ local function move_line_down()
   end
   local view = vim.fn.winsaveview()
   vim.cmd("silent! keepjumps execute 'move .+" .. count .. "'")
-  pcall(vim.cmd, "silent! undojoin")
+  pcall(vim.cmd, "undojoin")
   vim.cmd("silent! normal! ==")
   local new_lnum = cur + count
   local lines = vim.api.nvim_buf_get_lines(0, new_lnum - 1, new_lnum, false)
@@ -29,7 +29,6 @@ local function move_line_down()
   view.lnum = new_lnum
   view.col = col
   pcall(vim.fn.winrestview, view)
-  pcall(vim.api.nvim_win_set_cursor, 0, { new_lnum, col })
 end
 
 local function move_line_up()
@@ -44,7 +43,7 @@ local function move_line_up()
   end
   local view = vim.fn.winsaveview()
   vim.cmd("silent! keepjumps execute 'move .-" .. (count + 1) .. "'")
-  pcall(vim.cmd, "silent! undojoin")
+  pcall(vim.cmd, "undojoin")
   vim.cmd("silent! normal! ==")
   local new_lnum = cur - count
   local lines = vim.api.nvim_buf_get_lines(0, new_lnum - 1, new_lnum, false)
@@ -55,16 +54,25 @@ local function move_line_up()
   view.lnum = new_lnum
   view.col = col
   pcall(vim.fn.winrestview, view)
-  pcall(vim.api.nvim_win_set_cursor, 0, { new_lnum, col })
 end
 
 -- Normal: single line (supports v:count, e.g. 3 Alt-j to move 3 lines down) — <A-j> == <M-j> in nvim
 vim.keymap.set("n", "<A-j>", move_line_down, { desc = "Move line down", silent = true })
 vim.keymap.set("n", "<A-k>", move_line_up, { desc = "Move line up", silent = true })
 
--- Insert: move current line, stay in insert (silent! prevents E16 at top/bottom)
-vim.keymap.set("i", "<A-j>", "<esc><cmd>silent! keepjumps m .+1<cr>==gi", { desc = "Move line down", silent = true })
-vim.keymap.set("i", "<A-k>", "<esc><cmd>silent! keepjumps m .-2<cr>==gi", { desc = "Move line up", silent = true })
+-- Insert: move current line, stay in insert (supports v:count, consistent with normal)
+vim.keymap.set(
+  "i",
+  "<A-j>",
+  "<esc><cmd>silent! keepjumps execute 'm .+' . v:count1<cr>==gi",
+  { desc = "Move line down", silent = true }
+)
+vim.keymap.set(
+  "i",
+  "<A-k>",
+  "<esc><cmd>silent! keepjumps execute 'm .-' . (v:count1+1)<cr>==gi",
+  { desc = "Move line up", silent = true }
+)
 
 -- Visual: move block (1 line or more) — string mapping uses '<,'> marks set on leaving Visual
 -- via :<C-u>, so multi-line selections (e.g. V2j selects 3 lines) move as a whole;
@@ -83,6 +91,7 @@ vim.keymap.set(
 )
 
 -- Ctrl-z Undo / Ctrl-y Redo (GUI style) — v covers visual+select, no need for separate x
+-- Note: <C-y> overrides Vim default scroll-up-line (use <C-e> or <C-b> fallback), <C-z> overrides :stop suspend
 vim.keymap.set({ "n", "v" }, "<C-z>", "u", { desc = "Undo", silent = true })
 vim.keymap.set("i", "<C-z>", "<C-o>u", { desc = "Undo", silent = true })
 vim.keymap.set({ "n", "v" }, "<C-y>", "<C-r>", { desc = "Redo", silent = true })
