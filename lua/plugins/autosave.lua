@@ -5,9 +5,10 @@ return {
   cmd = "ASToggle",
   opts = {
     enabled = true,
+    -- no autosave while in insert mode: only TextChanged in normal, immediate after InsertLeave
     trigger_events = {
-      immediate_save = { "BufLeave", "FocusLost" },
-      defer_save = { "InsertLeave", "TextChanged" },
+      immediate_save = { "BufLeave", "FocusLost", "InsertLeave" },
+      defer_save = { "TextChanged" },
       cancel_deferred_save = { "InsertEnter" },
     },
     condition = function(buf)
@@ -26,6 +27,6 @@ return {
       return vim.bo[buf].modifiable and not vim.bo[buf].readonly
     end,
     write_all_buffers = false,
-    debounce_delay = 1000,
+    debounce_delay = 300,
   },
 }
