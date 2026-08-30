@@ -24,7 +24,10 @@ return {
       if vim.api.nvim_buf_get_name(buf) == "" then
         return false
       end
-      return vim.bo[buf].modifiable and not vim.bo[buf].readonly
+      if not vim.bo[buf].modifiable or vim.bo[buf].readonly then
+        return false
+      end
+      return true
     end,
     write_all_buffers = false,
     debounce_delay = 300,
