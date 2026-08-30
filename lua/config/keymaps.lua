@@ -90,21 +90,13 @@ vim.keymap.set(
   { desc = "Move selection up", silent = true }
 )
 
--- Ctrl-z Undo / Ctrl-Shift-z Redo (free Ctrl-y for blink) - redo now matches undo count handling
--- Ctrl-y reserved for blink.cmp, Ctrl-r is fallback redo. Ctrl-z overrides :stop
-local function do_undo()
-  local count = vim.v.count1
-  vim.cmd("silent! execute 'normal! ' .. count .. 'u'")
-end
-local function do_redo()
-  local count = vim.v.count1
-  local redo = vim.api.nvim_replace_termcodes("<C-r>", true, false, true)
-  vim.cmd("silent! execute 'normal! ' .. count .. redo")
-end
-vim.keymap.set({ "n", "v" }, "<C-z>", do_undo, { desc = "Undo", silent = true })
+-- Ctrl-z Undo / Ctrl-Shift-z + Ctrl-r Redo (free Ctrl-y for blink completion)
+-- Ctrl-y now reserved for blink.cmp select_and_accept; redo uses Ctrl-Shift-z (kitty_keyboard_mode 3)
+-- and fallback Ctrl-r. Ctrl-z overrides :stop suspend (use :suspend if needed)
+vim.keymap.set({ "n", "v" }, "<C-z>", "u", { desc = "Undo", silent = true })
 vim.keymap.set("i", "<C-z>", "<C-o>u", { desc = "Undo", silent = true })
-vim.keymap.set({ "n", "v" }, "<C-S-z>", do_redo, { desc = "Redo", silent = true })
-vim.keymap.set("i", "<C-S-z>", function()
-  local redo = vim.api.nvim_replace_termcodes("<C-r>", true, false, true)
-  vim.cmd("silent! execute 'normal! ' .. vim.v.count1 .. redo")
-end, { desc = "Redo", silent = true })
+-- Redo: Ctrl-Shift-z (distinct via kitty) + Ctrl-r (default) - one redo per press like undo
+vim.keymap.set({ "n", "v", "x", "s" }, "<C-S-z>", "<C-r>", { desc = "Redo", silent = true })
+vim.keymap.set("i", "<C-S-z>", "<C-o><C-r>", { desc = "Redo", silent = true })
+vim.keymap.set({ "n", "v", "x", "s" }, "<C-r>", "<C-r>", { desc = "Redo", silent = true })
+vim.keymap.set("i", "<C-r>", "<C-o><C-r>", { desc = "Redo", silent = true })
