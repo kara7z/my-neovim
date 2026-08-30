@@ -93,23 +93,14 @@ vim.keymap.set(
 -- Ctrl-z Undo / Ctrl-Shift-z + Ctrl-r/Ctrl-y Redo (free Ctrl-y for blink when completion visible)
 -- blink.cmp uses Ctrl-y for accept when menu visible, otherwise fallback to redo
 -- and fallback Ctrl-r. Ctrl-z overrides :stop suspend (use :suspend if needed)
--- make undo/redo respect v:count1 like 3Ctrl-z to undo 3, 3Ctrl-Shift-z to redo 3 (bigger like undo)
-vim.keymap.set({ "n", "v" }, "<C-z>", function()
-  return vim.v.count1 .. "u"
-end, { expr = true, desc = "Undo", silent = true })
+vim.keymap.set({ "n", "v" }, "<C-z>", "u", { desc = "Undo", silent = true })
 vim.keymap.set("i", "<C-z>", "<C-o>u", { desc = "Undo", silent = true })
-vim.keymap.set({ "n", "v", "x", "s" }, "<C-S-z>", function()
-  local redo = vim.api.nvim_replace_termcodes("<C-r>", true, false, true)
-  return vim.v.count1 .. redo
-end, { expr = true, desc = "Redo", silent = true })
+-- Redo: Ctrl-Shift-z (distinct via kitty mode 3) + Ctrl-r + Ctrl-y fallback - one per press, count 200Ctrl-Shift-z for 200 redo
+vim.keymap.set({ "n", "v", "x", "s" }, "<C-S-z>", "<C-r>", { desc = "Redo", silent = true })
 vim.keymap.set("i", "<C-S-z>", "<C-o><C-r>", { desc = "Redo", silent = true })
-vim.keymap.set({ "n", "v", "x", "s" }, "<C-S-Z>", function()
-  local redo = vim.api.nvim_replace_termcodes("<C-r>", true, false, true)
-  return vim.v.count1 .. redo
-end, { expr = true, desc = "Redo", silent = true })
+vim.keymap.set({ "n", "v", "x", "s" }, "<C-S-Z>", "<C-r>", { desc = "Redo", silent = true })
 vim.keymap.set("i", "<C-S-Z>", "<C-o><C-r>", { desc = "Redo", silent = true })
-vim.keymap.set({ "n", "v", "x", "s" }, "<C-y>", function()
-  local redo = vim.api.nvim_replace_termcodes("<C-r>", true, false, true)
-  return vim.v.count1 .. redo
-end, { expr = true, desc = "Redo", silent = true })
+vim.keymap.set({ "n", "v", "x", "s" }, "<C-y>", "<C-r>", { desc = "Redo", silent = true })
 vim.keymap.set("i", "<C-y>", "<C-o><C-r>", { desc = "Redo", silent = true })
+vim.keymap.set({ "n", "v", "x", "s" }, "<C-r>", "<C-r>", { desc = "Redo", silent = true })
+vim.keymap.set("i", "<C-r>", "<C-o><C-r>", { desc = "Redo", silent = true })
