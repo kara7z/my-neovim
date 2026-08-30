@@ -40,7 +40,7 @@ return {
     end,
   },
 
-  -- Mason: ensure LSP/tools for stack (eslint for JS errors)
+  -- Mason: ensure LSP/tools for stack (eslint for JS errors, selene for lua unused)
   {
     "mason-org/mason.nvim",
     opts = function(_, opts)
@@ -61,6 +61,7 @@ return {
         "lua-language-server",
         "marksman",
         "prettier",
+        "selene",
         "shfmt",
         "stylua",
         "tailwindcss-language-server",
@@ -85,7 +86,7 @@ return {
         dockerls = {},
         docker_compose_language_service = {},
         eslint = {},
-        -- php: intelephense strict diagnostics for undefined symbols (fixes index.php accepting bad syntax)
+        -- php: intelephense strict diagnostics for undefined + unused symbols
         intelephense = {
           settings = {
             intelephense = {
@@ -97,6 +98,7 @@ return {
                 undefinedMethods = true,
                 undefinedProperties = true,
                 undefinedVariables = true,
+                unusedVariable = true,
               },
             },
           },
@@ -105,8 +107,28 @@ return {
         lua_ls = {
           settings = {
             Lua = {
-              diagnostics = { globals = { "vim" } },
+              diagnostics = {
+                globals = { "vim" },
+                -- enable unused variable diagnostics for Lua (also via luacheck)
+                enable = true,
+                neededFileStatus = {
+                  ["unused-local"] = "Any",
+                  ["unused-vararg"] = "Any",
+                  ["codestyle-check"] = "Any",
+                },
+              },
               workspace = { checkThirdParty = false },
+            },
+          },
+        },
+        -- JS/TS: enable unused variable via typescript settings (vtsls/ts_ls via jsconfig/tsconfig)
+        vtsls = {
+          settings = {
+            javascript = {
+              inlayHints = { enumMemberValues = { enabled = true } },
+            },
+            typescript = {
+              inlayHints = { enumMemberValues = { enabled = true } },
             },
           },
         },
