@@ -5,7 +5,7 @@ return {
   cmd = "ASToggle",
   opts = {
     enabled = true,
-    -- fast autosave: immediate on InsertLeave/BufLeave/FocusLost, debounced 150ms on TextChanged
+    -- fast autosave: immediate on InsertLeave/BufLeave/FocusLost, debounced 300ms on TextChanged
     trigger_events = {
       immediate_save = { "BufLeave", "FocusLost", "InsertLeave" },
       defer_save = { "TextChanged", "TextChangedI" },
@@ -27,6 +27,6 @@ return {
       return vim.bo[buf].modifiable and not vim.bo[buf].readonly
     end,
     write_all_buffers = false,
-    debounce_delay = 150,
+    debounce_delay = 300,
   },
 }
