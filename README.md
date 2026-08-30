@@ -1,117 +1,100 @@
-# Neovim Config - CachyOS / Sway / LazyVim
+# Neovim Config
 
-Personal LazyVim configuration optimized for **CachyOS (Arch)** + **SwayFX** + **Kitty** with true black theme and Wayland clipboard.
+A fast and feature-rich [LazyVim](https://github.com/LazyVim/LazyVim) configuration.
 
 ## Features & Keymaps
 
 | Key | Action |
 |-----|--------|
-| `Alt-j` / `Alt-k` | Move line down / up (normal/insert/visual, supports count `3Alt-j`, multi-line visual) |
+| `Alt-j` / `Alt-k` | Move line down / up (normal/insert/visual, `3 Alt-j` moves 3 lines, visual moves block) |
 | `Ctrl-z` | Undo |
-| `Ctrl-Shift-z` / `Ctrl-r` | Redo (frees `Ctrl-y` for completion) |
-| `Ctrl-d` | Add multicursor / find under (`q` skip, `Q` remove, `Ctrl-Shift-d` remove last) |
-| `Tab` / `S-Tab` / `Enter` | `blink.cmp` next / prev / accept, `Ctrl-y` accept |
+| `Ctrl-y` / `Ctrl-Shift-z` / `Ctrl-r` | Redo |
+| `Ctrl-d` | Multicursor - add cursor under word (`q` skip, `Q` remove, `Ctrl-Shift-d` remove last) |
+| `Tab` / `S-Tab` / `Enter` | `blink.cmp` next / prev / accept |
 | `F2` | Snacks explorer (if enabled) |
+| `F8` / `Ctrl-/` | Toggle bottom terminal |
 
-**Language Support:** `clangd` (C/C++), `intelephense` (PHP/Laravel Blade), `vtsls`/`eslint` (TS/JS), `vue_ls`, `angularls`, `tailwindcss`, `jdtls` (Java), `json`, `yaml`, `lua`, `bash`, `docker`.
+**Languages:** `C/C++` (`clangd`, `codelldb`), `PHP` (`intelephense`, `Blade`), `TypeScript`/`JavaScript` (`vtsls`, `eslint`), `Vue`, `Angular`, `Tailwind`, `Java` (`jdtls`), `Python`, `Lua`, `Bash`, `Docker`, `JSON`, `YAML`, `Markdown`.
 
-**UI:** `tokyonight night` true black `#000000` (`Normal`, `Float`, `Telescope`, `NeoTree`), `Visual` `#33467c` high contrast on black, `DiagnosticUnnecessary` subtle `#3b4261` italic for unused.
+**UI:** `tokyonight` `night` true black `#000000`, high contrast `Visual` `#33467c`, subtle `DiagnosticUnnecessary` for unused.
 
-**Sway Integration:** `Alt` as main `$mod` (`set $mod Mod1`), `Focus` `Alt+Arrows` + `Alt+h/l`, `Move` `Alt+Shift+h/j/k/l+Arrows` keeps `Alt-j/k` free for nvim. `Super` (`Mod4`) for `browser`/`waypaper` to avoid conflict.
+**Other:** `auto-save` (300ms, not during insert), system clipboard (`wl-clipboard` on Wayland, `unnamedplus` elsewhere), `stylua`/`prettier`/`clang-format`/`pint`.
 
-**Other:** `auto-save` 300ms debounced (no save during insert, immediate on `InsertLeave`/`BufLeave`/`FocusLost`), `wl-clipboard` (`wl-copy`/`wl-paste`) `unnamedplus`, `stylua`/`prettier`/`clang-format`/`pint` conditional.
+## Prerequisites
 
-## Prerequisites (CachyOS / Arch)
+- **Git** - to clone and manage plugins
+- **Neovim** `>= 0.11.2` - https://neovim.io
+- **A Nerd Font** - for icons (e.g. `FiraCode Nerd Font`)
+- **A C Compiler** (`gcc`/`clang`) - for `nvim-treesitter`
+- **Ripgrep** (`rg`) - for search (`Telescope`/`Snacks.picker`)
 
-```sh
-sudo pacman -S neovim git base-devel gcc clang ripgrep fd lazygit fzf curl wl-clipboard \
-  nodejs npm python python-pip python-pynvim ruby luarocks tree-sitter lua51 \
-  php composer jdk-openjdk
+*Optional but recommended:*
 
-# Nerd Font (for icons)
-sudo pacman -S ttf-firacode-nerd
+- `fd` - faster file finder
+- `lazygit` - git UI
+- `fzf` - fuzzy finder
+- `wl-clipboard` - Wayland clipboard (Linux Wayland)
+- `Node.js` `>= 18` - for `eslint`/`vtsls`/`tailwindcss`
+- `Python` + `pynvim` - for Python provider
+- `Ruby` - for Ruby provider
+- `tree-sitter` CLI - `npm install -g tree-sitter-cli`
 
-# Optional but recommended for this config
-sudo pacman -S kitty swayfx waybar wl-clipboard brightnessctl grim slurp
-
-# Node provider for nvim
-sudo npm install -g neovim
-gem install neovim
-pip install pynvim  # or: pipx install pynvim / pacman -S python-pynvim
-
-# Verify
-nvim --version  # >= 0.11.2
-tree-sitter --version  # via npm: npm install -g tree-sitter-cli --allow-scripts
-```
-
-**Sway/Kity:** Ensure `kitty.conf` has `kitty_keyboard_mode 3` (already set) for distinct `Ctrl-Shift-z`.
-
-## Installation on New PC
+## Installation
 
 1. **Backup old config** (if any):
-```sh
-mv ~/.config/nvim ~/.config/nvim.bak
-mv ~/.local/share/nvim ~/.local/share/nvim.bak
-mv ~/.local/state/nvim ~/.local/state/nvim.bak
-mv ~/.cache/nvim ~/.cache/nvim.bak
-```
 
-2. **Clone this config:**
-```sh
-git clone https://github.com/kara7z/my-neovim.git ~/.config/nvim
-cd ~/.config/nvim
-git checkout feat-Update  # or main, depending which branch you want
-```
+   ```sh
+   # Linux / macOS
+   mv ~/.config/nvim ~/.config/nvim.bak
+   mv ~/.local/share/nvim ~/.local/share/nvim.bak
+   mv ~/.local/state/nvim ~/.local/state/nvim.bak
+   mv ~/.cache/nvim ~/.cache/nvim.bak
 
-3. **First launch** (installs `lazy.nvim` + plugins):
-```sh
-nvim
-# wait for Lazy to finish, press q to close, then restart
-```
+   # Windows (PowerShell)
+   Rename-Item -Path $env:LOCALAPPDATA\nvim -NewName nvim.bak -ErrorAction SilentlyContinue
+   ```
 
-4. **Health checks:**
-```sh
-nvim --headless "+checkhealth" "+qa"
-# Expected: lazy ✅, lazyvim ✅, vim.treesitter ✅, vim.provider ✅ (perl disabled), vim.pack ✅
-:checkhealth
-:Mason  # ensure clangd, intelephense, eslint-lsp, lua-language-server etc installed
-:Lazy sync
-```
+2. **Clone this repo:**
 
-5. **Sway** (if using SwayFX):
-```sh
-cp ~/.config/sway/config ~/.config/sway/config.bak  # backup
-# already configured: $mod Mod1 (Alt), focus Alt+Arrows+Alt+h/l, move Alt+Shift+...
-swaymsg reload
-# test: open kitty -> nvim -> Alt-j/k should move line, Alt+Arrows should focus sway
-```
+   ```sh
+   git clone https://github.com/kara7z/my-neovim.git ~/.config/nvim
+   # Linux/macOS
+   # Windows: git clone https://github.com/kara7z/my-neovim.git "$env:LOCALAPPDATA\nvim"
+   ```
 
-6. **Project setup** (for JS/PHP/C++):
-```sh
-# C++: uses system clang-format 22.1.8 + .clangd in Cpp learning ( -Wunused-variable )
-# JS: eslint.config.js + jsconfig.json (noUnusedLocals) already in Cpp learning
-# PHP: intelephense for function-scope unused, php -l for syntax (no psalm needed)
-```
+3. **Start Neovim** (first launch installs plugins):
+
+   ```sh
+   nvim
+   # wait for Lazy to finish, press q, then restart
+   ```
+
+4. **Check health:**
+
+   ```sh
+   :checkhealth
+   :Mason   # install missing LSP/formatters if needed
+   :Lazy sync
+   ```
+
+## Sway / Wayland Notes (optional)
+
+If you use `Sway`/`SwayFX` with `Kitty`:
+
+- `kitty.conf` needs `kitty_keyboard_mode 3` for distinct `Ctrl-Shift-z` (already set)
+- `sway/config` uses `Alt` as `$mod` (`Mod1`), `Alt+Arrows` + `Alt+h/l` for focus, `Alt+Shift+...` for move to keep `Alt-j/k` free for nvim. `Super` for `browser` etc.
+- After changing `sway/config`: `swaymsg reload`
 
 ## Useful Checks
 
 ```sh
-# Format/style
 stylua --check lua/
-
-# Headless smoke test
 nvim --headless -c "lua print('ok')" -c "qa"
-
 # LSP
-nvim Cpp\ learning/main.cpp  # :LspInfo should show clangd
-nvim Cpp\ learning/index.php # :LspInfo should show intelephense
-nvim Cpp\ learning/index.js  # :LspInfo should show eslint+vtsls, :lua vim.diagnostic.get(0) shows no-unused-vars
+nvim --headless "+checkhealth vim.lsp" "+qa"
 ```
 
-## Notes
+## Customization
 
-- `Sway` `Alt` as `$mod` vs `nvim` `Alt-j/k`: Focus uses `Alt+Arrows` + `Alt+h/l` only, `Alt+j/k` passthrough to nvim. `Super` (`Mod4`) used for `browser`/`waypaper` to avoid `Alt+b` conflict with `splith`.
-- `clipboard` uses `wl-copy`/`wl-paste` via `vim.g.clipboard`, `opt.clipboard=unnamedplus` with `UIEnter`/`VeryLazy` autocmd to survive `OSC52`.
-- `true black` overrides `tokyonight` `on_colors` `bg #000000` and `on_highlights` for `Normal`, `Float`, `Telescope`, `Visual #33467c`.
-- `auto-save` (`okuuva/auto-save.nvim` `1.0.0`) `debounce 300ms`, no save during insert (`TextChanged` only, `InsertLeave` immediate).
-- `unused` diagnostics: `intelephense` `unusedSymbols` (function scope), `eslint` `no-unused-vars`, `clangd -Wunused-variable` (via `.clangd`), `selene` (lua), `DiagnosticUnnecessary` subtle `#3b4261` italic.
+See `lua/config/options.lua` for editor options, `lua/config/keymaps.lua` for keymaps, `lua/plugins/` for plugin overrides. `lazyvim.json` lists enabled `extras` (add/remove e.g. `lazyvim.plugins.extras.lang.python`).
+
