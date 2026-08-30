@@ -28,15 +28,11 @@ return {
         hl.WhichKeyNormal = { bg = "#000000" }
         hl.SnacksNormal = { bg = "#000000" }
         hl.SnacksWinBar = { bg = "#000000" }
-        -- unused variable with cyan (LazyVim tokyonight cyan #7dcfff) - DiagnosticUnnecessary is used for unused
-        hl.DiagnosticUnnecessary = { fg = c.cyan, bg = "#000000" }
-        hl.DiagnosticHint = { fg = c.cyan, bg = "#000000" }
-        hl.DiagnosticWarn = { fg = c.yellow, bg = "#000000" }
-        -- also set LspInlayHint and unnecessary for treesitter
-        hl.LspInlayHint = { fg = c.cyan, bg = "#1a1a1a" }
-        hl["@variable"] = { fg = c.fg }
-        hl["@lsp.type.variable"] = { fg = c.fg }
-        hl["@lsp.typemod.variable.readonly"] = { fg = c.cyan }
+        -- unused variable subtle hidden like before (faded, not cyan) - DiagnosticUnnecessary is used for unused
+        hl.DiagnosticUnnecessary = { fg = c.fg_gutter, bg = "#000000", italic = true }
+        hl.DiagnosticHint = { fg = c.hint, bg = "#000000" }
+        -- keep inlay hints subtle
+        hl.LspInlayHint = { fg = c.comment, bg = "#1a1a1a", italic = true }
       end,
     },
   },
