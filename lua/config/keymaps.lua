@@ -90,9 +90,13 @@ vim.keymap.set(
   { desc = "Move selection up", silent = true }
 )
 
--- Ctrl-z Undo / Ctrl-y Redo (GUI style) — v covers visual+select, no need for separate x
--- Note: <C-y> overrides Vim default scroll-up-line (use <C-e> or <C-b> fallback), <C-z> overrides :stop suspend
+-- Ctrl-z Undo / Ctrl-Shift-z + Ctrl-r Redo (free Ctrl-y for blink completion)
+-- Ctrl-y now reserved for blink.cmp select_and_accept; redo uses Ctrl-Shift-z (kitty_keyboard_mode 3)
+-- and fallback Ctrl-r / U. Ctrl-z overrides :stop suspend (use :suspend if needed)
 vim.keymap.set({ "n", "v" }, "<C-z>", "u", { desc = "Undo", silent = true })
 vim.keymap.set("i", "<C-z>", "<C-o>u", { desc = "Undo", silent = true })
-vim.keymap.set({ "n", "v" }, "<C-y>", "<C-r>", { desc = "Redo", silent = true })
-vim.keymap.set("i", "<C-y>", "<C-o><C-r>", { desc = "Redo", silent = true })
+-- Redo: Ctrl-Shift-z (distinct via kitty) + Ctrl-r (default) + select mode
+vim.keymap.set({ "n", "v", "x", "s" }, "<C-S-z>", "<C-r>", { desc = "Redo", silent = true })
+vim.keymap.set("i", "<C-S-z>", "<C-o><C-r>", { desc = "Redo", silent = true })
+vim.keymap.set({ "n", "v", "x", "s" }, "<C-r>", "<C-r>", { desc = "Redo", silent = true })
+vim.keymap.set("i", "<C-r>", "<C-o><C-r>", { desc = "Redo", silent = true })
