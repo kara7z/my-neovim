@@ -5,10 +5,10 @@ return {
   cmd = "ASToggle",
   opts = {
     enabled = true,
-    -- fast autosave: immediate on InsertLeave/BufLeave/FocusLost, debounced 300ms on TextChanged
+    -- no autosave while in insert mode: only TextChanged in normal, immediate after InsertLeave
     trigger_events = {
       immediate_save = { "BufLeave", "FocusLost", "InsertLeave" },
-      defer_save = { "TextChanged", "TextChangedI" },
+      defer_save = { "TextChanged" },
       cancel_deferred_save = { "InsertEnter" },
     },
     condition = function(buf)
