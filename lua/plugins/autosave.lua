@@ -27,12 +27,6 @@ return {
       if not vim.bo[buf].modifiable or vim.bo[buf].readonly then
         return false
       end
-      -- don't autosave if buffer has diagnostics errors (incorrect syntax) - so Ctrl-z/Ctrl-Shift-z can return to last correct
-      for _, diag in ipairs(vim.diagnostic.get(buf)) do
-        if diag.severity == vim.diagnostic.severity.ERROR then
-          return false
-        end
-      end
       return true
     end,
     write_all_buffers = false,
