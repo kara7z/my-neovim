@@ -2,6 +2,9 @@
 -- Default options that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/options.lua
 -- Add any additional options here
 
+-- PHP LSP: use intelephense for stricter diagnostics (undefined vars/constants) instead of phpactor default
+vim.g.lazyvim_php_lsp = "intelephense"
+
 -- CachyOS/Sway + Wayland: system clipboard via wl-copy/wl-paste
 vim.opt.clipboard = "unnamedplus"
 -- Explicit wl-clipboard provider for Wayland (fallback if LazyVim doesn't detect)

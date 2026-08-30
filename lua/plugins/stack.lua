@@ -71,7 +71,7 @@ return {
     end,
   },
 
-  -- LSP: html/css/json/yaml/lua + eslint for JS errors (extras cover php/java/tailwind/vue/angular/typescript/clangd)
+  -- LSP: html/css/json/yaml/lua + eslint for JS errors, intelephense strict for PHP
   {
     "neovim/nvim-lspconfig",
     opts = {
@@ -85,6 +85,23 @@ return {
         dockerls = {},
         docker_compose_language_service = {},
         eslint = {},
+        -- php: intelephense strict diagnostics for undefined symbols (fixes index.php accepting bad syntax)
+        intelephense = {
+          settings = {
+            intelephense = {
+              diagnostics = {
+                undefinedTypes = true,
+                undefinedFunctions = true,
+                undefinedConstants = true,
+                undefinedClassConstants = true,
+                undefinedMethods = true,
+                undefinedProperties = true,
+                undefinedVariables = true,
+              },
+            },
+          },
+        },
+        phpactor = { enabled = false },
         lua_ls = {
           settings = {
             Lua = {
