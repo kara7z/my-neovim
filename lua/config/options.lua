@@ -37,6 +37,9 @@ vim.opt.undofile = true
 vim.opt.conceallevel = 0
 vim.opt.spelllang = { "en" }
 
+-- Undo/redo history for 200+ steps (default 10000, keep high for 200 redo via 200Ctrl-Shift-z)
+vim.opt.undolevels = 10000
+vim.opt.undoreload = 10000
 -- Disable unused providers to silence checkhealth warnings (perl optional, python/ruby installed)
 vim.g.loaded_perl_provider = 0
 -- Sway/kitty: faster escape, true colors already via LazyVim
