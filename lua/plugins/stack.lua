@@ -40,7 +40,7 @@ return {
     end,
   },
 
-  -- Mason: ensure LSP/tools for stack (eslint for JS errors, selene for lua unused)
+  -- Mason: ensure LSP/tools for stack (eslint for JS, selene for lua)
   {
     "mason-org/mason.nvim",
     opts = function(_, opts)
