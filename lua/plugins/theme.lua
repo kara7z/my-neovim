@@ -12,7 +12,7 @@ return {
         colors.bg = "#000000"
         colors.bg_dark = "#000000"
         colors.bg_highlight = "#0a0a0a"
-        colors.bg_visual = "#1a1a1a"
+        colors.bg_visual = "#33467c"
         colors.bg_sidebar = "#000000"
         colors.bg_float = "#000000"
       end,
@@ -28,9 +28,21 @@ return {
         hl.WhichKeyNormal = { bg = "#000000" }
         hl.SnacksNormal = { bg = "#000000" }
         hl.SnacksWinBar = { bg = "#000000" }
+        -- make Visual selection clearly visible on true black (was #1a1a1a too dark)
+        hl.Visual = { bg = "#33467c", fg = c.fg }
+        hl.VisualNOS = { bg = "#33467c", fg = c.fg }
+        -- search word highlight (when you press * or select word)
+        hl.Search = { bg = c.yellow, fg = "#000000" }
+        hl.IncSearch = { bg = c.orange, fg = "#000000" }
+        hl.CurSearch = { bg = c.red, fg = "#ffffff" }
+        -- lsp references when selecting word
+        hl.LspReferenceText = { bg = "#3b4261" }
+        hl.LspReferenceRead = { bg = "#3b4261" }
+        hl.LspReferenceWrite = { bg = "#3b4261" }
         -- unused variable subtle hidden like before (faded, not cyan) - DiagnosticUnnecessary is used for unused
         hl.DiagnosticUnnecessary = { fg = c.fg_gutter, bg = "#000000", italic = true }
         hl.DiagnosticHint = { fg = c.hint, bg = "#000000" }
+        hl.DiagnosticInfo = { fg = c.fg_gutter, bg = "#000000", italic = true }
         -- keep inlay hints subtle
         hl.LspInlayHint = { fg = c.comment, bg = "#1a1a1a", italic = true }
       end,
