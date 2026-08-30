@@ -97,13 +97,14 @@ return {
                 undefinedClassConstants = true,
                 undefinedMethods = true,
                 undefinedProperties = true,
-                undefinedVariables = true,
-                unusedVariable = true,
+                undefinedVariables = "on",
+                unusedSymbols = true,
               },
             },
           },
         },
         phpactor = { enabled = false },
+        psalm = { enabled = false },
         lua_ls = {
           settings = {
             Lua = {
