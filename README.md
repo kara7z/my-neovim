@@ -22,6 +22,24 @@ A fast and feature-rich [LazyVim](https://github.com/LazyVim/LazyVim) configurat
 
 ## Prerequisites
 
+### Arch Linux / CachyOS - Install all tools at once (first command)
+
+```sh
+sudo pacman -S neovim git base-devel gcc clang ripgrep fd lazygit fzf curl wl-clipboard \
+  nodejs npm python python-pip python-pynvim ruby luarocks tree-sitter lua51 \
+  php composer jdk-openjdk ttf-firacode-nerd kitty swayfx waybar wl-clipboard brightnessctl grim slurp
+
+# Node/Python/Ruby providers
+sudo npm install -g neovim
+gem install neovim
+pip install pynvim  # or: pipx install pynvim / pacman -S python-pynvim
+
+# tree-sitter CLI
+npm install -g tree-sitter-cli --allow-scripts
+```
+
+### General (any OS)
+
 - **Git** - to clone and manage plugins
 - **Neovim** `>= 0.11.2` - https://neovim.io
 - **A Nerd Font** - for icons (e.g. `FiraCode Nerd Font`)
