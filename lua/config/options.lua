@@ -52,7 +52,10 @@ vim.api.nvim_create_autocmd("User", {
     vim.schedule(function()
       vim.diagnostic.config({ update_in_insert = false })
       -- hide jdtls "Validate documents" / "Publish Diagnostics" progress popup (keep validation, just no UI) - global handler
-      if vim.lsp.handlers["$/progress"] and vim.lsp.handlers["$/progress"]._filtered then
+      if vim.g._progress_global_patched then
+        return
+      end
+      if type(vim.lsp.handlers) ~= "table" then
         return
       end
       local orig_progress = vim.lsp.handlers["$/progress"]
@@ -77,8 +80,8 @@ vim.api.nvim_create_autocmd("User", {
           return orig_progress(err, result, ctx, config)
         end
       end
-      wrapped._filtered = true
       vim.lsp.handlers["$/progress"] = wrapped
+      vim.g._progress_global_patched = true
     end)
   end,
 })
@@ -91,11 +94,17 @@ vim.api.nvim_create_autocmd("LspAttach", {
       -- keep language/status hidden (already via jdtls opts), ensure diagnostics hidden in insert
       vim.diagnostic.config({ update_in_insert = false })
       -- wrap $/progress to filter Validate / Publish messages so lualine/snacks don't spam (avoid double patch)
-      local existing = client.handlers["$/progress"]
-      if existing and existing._filtered then
+      if client._progress_patched then
         return
       end
-      local orig = existing or vim.lsp.handlers["$/progress"]
+      if type(client.handlers) ~= "table" then
+        client.handlers = {}
+      end
+      local existing = client.handlers["$/progress"]
+      local orig = existing
+      if not orig and type(vim.lsp.handlers) == "table" then
+        orig = vim.lsp.handlers["$/progress"]
+      end
       local wrapped = function(err, result, ctx, config)
         if result and result.value then
           local title = result.value.title or ""
@@ -117,8 +126,8 @@ vim.api.nvim_create_autocmd("LspAttach", {
           return orig(err, result, ctx, config)
         end
       end
-      wrapped._filtered = true
       client.handlers["$/progress"] = wrapped
+      client._progress_patched = true
     end
   end,
 })
