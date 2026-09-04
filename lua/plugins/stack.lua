@@ -126,7 +126,7 @@ return {
                 neededFileStatus = {
                   ["unused-local"] = "Any",
                   ["unused-vararg"] = "Any",
-                  ["codestyle-check"] = "Any",
+                  ["codestyle-check"] = "None",
                 },
               },
               workspace = { checkThirdParty = false },
