@@ -52,8 +52,11 @@ vim.api.nvim_create_autocmd("User", {
     vim.schedule(function()
       vim.diagnostic.config({ update_in_insert = false })
       -- hide jdtls "Validate documents" / "Publish Diagnostics" progress popup (keep validation, just no UI) - global handler
+      if vim.lsp.handlers["$/progress"] and vim.lsp.handlers["$/progress"]._filtered then
+        return
+      end
       local orig_progress = vim.lsp.handlers["$/progress"]
-      vim.lsp.handlers["$/progress"] = function(err, result, ctx, config)
+      local wrapped = function(err, result, ctx, config)
         if result and result.value then
           local title = result.value.title or ""
           local message = result.value.message or ""
@@ -63,8 +66,12 @@ vim.api.nvim_create_autocmd("User", {
             return
           end
         end
-        return orig_progress(err, result, ctx, config)
+        if orig_progress then
+          return orig_progress(err, result, ctx, config)
+        end
       end
+      wrapped._filtered = true
+      vim.lsp.handlers["$/progress"] = wrapped
     end)
   end,
 })
@@ -76,9 +83,13 @@ vim.api.nvim_create_autocmd("LspAttach", {
     if client and client.name == "jdtls" then
       -- keep language/status hidden (already via jdtls opts), ensure diagnostics hidden in insert
       vim.diagnostic.config({ update_in_insert = false })
-      -- wrap $/progress to filter Validate / Publish messages so lualine/snacks don't spam
-      local orig = client.handlers["$/progress"] or vim.lsp.handlers["$/progress"]
-      client.handlers["$/progress"] = function(err, result, ctx, config)
+      -- wrap $/progress to filter Validate / Publish messages so lualine/snacks don't spam (avoid double patch)
+      local existing = client.handlers["$/progress"]
+      if existing and existing._filtered then
+        return
+      end
+      local orig = existing or vim.lsp.handlers["$/progress"]
+      local wrapped = function(err, result, ctx, config)
         if result and result.value then
           local title = result.value.title or ""
           local message = result.value.message or ""
@@ -88,8 +99,12 @@ vim.api.nvim_create_autocmd("LspAttach", {
             return
           end
         end
-        return orig(err, result, ctx, config)
+        if orig then
+          return orig(err, result, ctx, config)
+        end
       end
+      wrapped._filtered = true
+      client.handlers["$/progress"] = wrapped
     end
   end,
 })

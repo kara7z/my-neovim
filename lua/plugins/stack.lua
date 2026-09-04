@@ -165,6 +165,9 @@ return {
       formatters = {
         pint = {
           condition = function(_, ctx)
+            if not ctx or not ctx.dirname then
+              return false
+            end
             return vim.fs.find("composer.json", { path = ctx.dirname, upward = true })[1] ~= nil
           end,
         },

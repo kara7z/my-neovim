@@ -14,11 +14,26 @@ return {
     opts = function(_, opts)
       -- jdtls runner needs Java 21+ even if your project is Java 17 (log: jdtls requires at least Java 21)
       local jdtls_bin = vim.fn.exepath("jdtls")
-      if jdtls_bin == "" or jdtls_bin == "jdtls" then
+      if jdtls_bin == "" then
         jdtls_bin = vim.fn.expand("$HOME/.local/share/nvim/mason/bin/jdtls")
       end
-      local lombok = vim.fn.expand("$MASON/share/jdtls/lombok.jar")
-      local cmd = { jdtls_bin, "--java-executable", "/usr/lib/jvm/java-21-openjdk/bin/java" }
+      if vim.fn.executable(jdtls_bin) ~= 1 and vim.fn.filereadable(jdtls_bin) ~= 1 then
+        -- fallback to mason package path
+        jdtls_bin = vim.fn.stdpath("data") .. "/mason/bin/jdtls"
+      end
+      local lombok = vim.fn.stdpath("data") .. "/mason/share/jdtls/lombok.jar"
+      -- also check legacy $MASON expansion fallback
+      if vim.fn.filereadable(lombok) ~= 1 then
+        local alt = vim.fn.expand("$MASON/share/jdtls/lombok.jar")
+        if alt ~= "$MASON/share/jdtls/lombok.jar" and vim.fn.filereadable(alt) == 1 then
+          lombok = alt
+        end
+      end
+      local java21 = "/usr/lib/jvm/java-21-openjdk/bin/java"
+      if vim.fn.executable(java21) ~= 1 then
+        java21 = vim.fn.exepath("java")
+      end
+      local cmd = { jdtls_bin, "--java-executable", java21 }
       if vim.fn.filereadable(lombok) == 1 then
         table.insert(cmd, string.format("--jvm-arg=-javaagent:%s", lombok))
       end

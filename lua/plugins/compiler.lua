@@ -8,7 +8,11 @@ return {
       require("compiler").setup(opts)
       -- Fix C++: compile only current file (not all *.cpp) to avoid multiple definition of main
       -- Default cpp.lua compiles all *.cpp in cwd to bin/program, which fails when each .cpp has its own main
-      local cpp = require("compiler.languages.cpp")
+      local ok, cpp = pcall(require, "compiler.languages.cpp")
+      if not ok or not cpp then
+        vim.notify("compiler.nvim: cpp language not found, skipping override", vim.log.levels.WARN)
+        return
+      end
       local orig_action = cpp.action
       cpp.action = function(selected_option)
         if selected_option == "option1" or selected_option == "option2" then
