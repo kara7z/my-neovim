@@ -42,6 +42,58 @@ vim.opt.undolevels = 10000
 vim.opt.undoreload = 10000
 -- Disable unused providers to silence checkhealth warnings (perl optional, python/ruby installed)
 vim.g.loaded_perl_provider = 0
+-- LSP/Java: don't validate on every keystroke (fixes "validate document" spam)
+vim.diagnostic.config({ update_in_insert = false })
+vim.opt.updatetime = 500
+-- re-apply after LazyVim overwrites diagnostics in lsp/init.lua
+vim.api.nvim_create_autocmd("User", {
+  pattern = "VeryLazy",
+  callback = function()
+    vim.schedule(function()
+      vim.diagnostic.config({ update_in_insert = false })
+      -- hide jdtls "Validate documents" / "Publish Diagnostics" progress popup (keep validation, just no UI) - global handler
+      local orig_progress = vim.lsp.handlers["$/progress"]
+      vim.lsp.handlers["$/progress"] = function(err, result, ctx, config)
+        if result and result.value then
+          local title = result.value.title or ""
+          local message = result.value.message or ""
+          local t = title:lower()
+          local m = message:lower()
+          if title:match("Validate") or message:match("Validate") or t:match("publish") or m:match("publish") or t:match("diagnostics") or m:match("diagnostics") then
+            return
+          end
+        end
+        return orig_progress(err, result, ctx, config)
+      end
+    end)
+  end,
+})
+
+-- Per-client filter: hide only Validate progress for jdtls (keep other progress / fix _java.reloadBundles error)
+vim.api.nvim_create_autocmd("LspAttach", {
+  callback = function(args)
+    local client = vim.lsp.get_client_by_id(args.data.client_id)
+    if client and client.name == "jdtls" then
+      -- keep language/status hidden (already via jdtls opts), ensure diagnostics hidden in insert
+      vim.diagnostic.config({ update_in_insert = false })
+      -- wrap $/progress to filter Validate / Publish messages so lualine/snacks don't spam
+      local orig = client.handlers["$/progress"] or vim.lsp.handlers["$/progress"]
+      client.handlers["$/progress"] = function(err, result, ctx, config)
+        if result and result.value then
+          local title = result.value.title or ""
+          local message = result.value.message or ""
+          local t = title:lower()
+          local m = message:lower()
+          if title:match("Validate") or message:match("Validate") or t:match("publish") or m:match("publish") or t:match("diagnostics") or m:match("diagnostics") then
+            return
+          end
+        end
+        return orig(err, result, ctx, config)
+      end
+    end
+  end,
+})
+
 -- Sway/kitty: faster escape, true colors already via LazyVim
 vim.opt.timeoutlen = 300
 vim.opt.ttimeoutlen = 10

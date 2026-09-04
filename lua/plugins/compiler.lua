@@ -20,30 +20,28 @@ return {
           end
           local output_dir = vim.fn.getcwd() .. "/bin/"
           local output = output_dir .. vim.fn.fnamemodify(bufname, ":t:r")
-          local final_message = "--task finished--"
           local cmd
           if selected_option == "option1" then
-            cmd = 'rm -f "' .. output .. '" || true && mkdir -p "' .. output_dir .. '" && g++ "' .. bufname .. '" -o "' .. output .. '" -Wall -g && "' .. output .. '" && echo "' .. bufname .. '" && echo "' .. final_message .. '"'
+            cmd = 'mkdir -p "' .. output_dir .. '" && g++ "' .. bufname .. '" -o "' .. output .. '" -Wall -g && "' .. output .. '"'
           else
-            cmd = 'rm -f "' .. output .. '" || true && mkdir -p "' .. output_dir .. '" && g++ "' .. bufname .. '" -o "' .. output .. '" -Wall -g && echo "' .. bufname .. '" && echo "' .. final_message .. '"'
+            cmd = 'mkdir -p "' .. output_dir .. '" && g++ "' .. bufname .. '" -o "' .. output .. '" -Wall -g'
           end
           local task = overseer.new_task({
             name = "- C++ compiler",
-            strategy = { "orchestrator", tasks = { { name = "- Build program → \"" .. bufname .. "\"", cmd = cmd, components = { "default_extended" } } } },
+            strategy = { "orchestrator", tasks = { { name = "- Build program → \"" .. bufname .. "\"", cmd = cmd, components = { "default" } } } },
           })
           task:start()
         elseif selected_option == "option3" then
-          -- Run: run current file's binary
+          -- Run: run current file's binary - just result
           local overseer = require("overseer")
           local bufname = vim.api.nvim_buf_get_name(0)
           if bufname == "" then
             bufname = vim.fn.getcwd() .. "/main.cpp"
           end
           local output = vim.fn.getcwd() .. "/bin/" .. vim.fn.fnamemodify(bufname, ":t:r")
-          local final_message = "--task finished--"
           local task = overseer.new_task({
             name = "- C++ compiler",
-            strategy = { "orchestrator", tasks = { { name = "- Run program → \"" .. output .. "\"", cmd = '"' .. output .. '" && echo "' .. output .. '" && echo "' .. final_message .. '"', components = { "default_extended" } } } },
+            strategy = { "orchestrator", tasks = { { name = "- Run program → \"" .. output .. "\"", cmd = '"' .. output .. '"', components = { "default" } } } },
           })
           task:start()
         else
@@ -53,7 +51,6 @@ return {
     end,
     keys = {
       { "<F6>", "<cmd>CompilerOpen<cr>", desc = "Open compiler" },
-      { "<F5>", "<cmd>CompilerOpen<cr>", desc = "Open compiler" },
       { "<S-F6>", "<cmd>CompilerStop<cr><cmd>CompilerRedo<cr>", desc = "Redo last compiler task" },
       { "<S-F7>", "<cmd>CompilerToggleResults<cr>", desc = "Toggle compiler results" },
     },
@@ -65,7 +62,7 @@ return {
       task_list = { direction = "bottom", min_height = 25, max_height = 25, default_detail = 1 },
     },
   },
-  -- Fallback: direct g++ compile for current file (F5) if compiler.nvim still fails
+  -- Fallback: direct g++ compile for current file (F5) - just result, no g++ echo
   {
     "folke/which-key.nvim",
     optional = true,
@@ -78,9 +75,9 @@ return {
         end
         local out = vim.fn.getcwd() .. "/bin/" .. vim.fn.fnamemodify(file, ":t:r")
         vim.fn.mkdir(vim.fn.getcwd() .. "/bin", "p")
-        local cmd = string.format('g++ "%s" -o "%s" -Wall -g && echo "Compiled %s -> %s" && "%s"', file, out, file, out, out)
         require("overseer").new_task({
-          cmd = cmd,
+          name = "Direct g++ " .. vim.fn.fnamemodify(file, ":t"),
+          cmd = string.format('g++ "%s" -o "%s" -Wall -g && "%s"', file, out, out),
           components = { "default" },
         }):start()
       end, { desc = "Direct g++ current file" })

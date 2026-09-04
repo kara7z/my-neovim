@@ -1,0 +1,62 @@
+return {
+  -- 1. Global lsp: don't show diagnostics while typing
+  {
+    "neovim/nvim-lspconfig",
+    opts = {
+      diagnostics = {
+        update_in_insert = false,
+      },
+    },
+  },
+  -- 2. jdtls: throttle didChange + validate only on save + run jdtls on Java 21 LTS (requires >=21) while project targets 17 LTS
+  {
+    "mfussenegger/nvim-jdtls",
+    opts = function(_, opts)
+      -- jdtls runner needs Java 21+ even if your project is Java 17 (log: jdtls requires at least Java 21)
+      local jdtls_bin = vim.fn.exepath("jdtls")
+      if jdtls_bin == "" or jdtls_bin == "jdtls" then
+        jdtls_bin = vim.fn.expand("$HOME/.local/share/nvim/mason/bin/jdtls")
+      end
+      local lombok = vim.fn.expand("$MASON/share/jdtls/lombok.jar")
+      local cmd = { jdtls_bin, "--java-executable", "/usr/lib/jvm/java-21-openjdk/bin/java" }
+      if vim.fn.filereadable(lombok) == 1 then
+        table.insert(cmd, string.format("--jvm-arg=-javaagent:%s", lombok))
+      end
+      opts.cmd = cmd
+
+      opts.jdtls = vim.tbl_deep_extend("force", opts.jdtls or {}, {
+        flags = {
+          debounce_text_changes = 800,
+          allow_incremental_sync = true,
+        },
+        handlers = {
+          ["language/status"] = function() end,
+        },
+      })
+
+      opts.settings = vim.tbl_deep_extend("force", opts.settings or {}, {
+        java = {
+          autobuild = { enabled = false },
+          maxConcurrentBuilds = 1,
+          saveActions = { organizeImports = false },
+          completion = {
+            enabled = true,
+            lazyResolveTextEdit = { enabled = false },
+          },
+          configuration = {
+            updateBuildConfiguration = "interactive",
+            runtimes = {
+              { name = "JavaSE-17", path = "/usr/lib/jvm/java-17-openjdk", default = true },
+              { name = "JavaSE-21", path = "/usr/lib/jvm/java-21-openjdk" },
+              { name = "JavaSE-26", path = "/usr/lib/jvm/java-26-openjdk" },
+            },
+          },
+          edit = {
+            validateAllOpenBuffersOnChanges = false,
+          },
+        },
+      })
+      return opts
+    end,
+  },
+}
