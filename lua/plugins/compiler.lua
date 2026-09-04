@@ -26,13 +26,24 @@ return {
           local output = output_dir .. vim.fn.fnamemodify(bufname, ":t:r")
           local cmd
           if selected_option == "option1" then
-            cmd = 'mkdir -p "' .. output_dir .. '" && g++ "' .. bufname .. '" -o "' .. output .. '" -Wall -g && "' .. output .. '"'
+            cmd = 'mkdir -p "'
+              .. output_dir
+              .. '" && g++ "'
+              .. bufname
+              .. '" -o "'
+              .. output
+              .. '" -Wall -g && "'
+              .. output
+              .. '"'
           else
             cmd = 'mkdir -p "' .. output_dir .. '" && g++ "' .. bufname .. '" -o "' .. output .. '" -Wall -g'
           end
           local task = overseer.new_task({
             name = "- C++ compiler",
-            strategy = { "orchestrator", tasks = { { name = "- Build program → \"" .. bufname .. "\"", cmd = cmd, components = { "default" } } } },
+            strategy = {
+              "orchestrator",
+              tasks = { { name = '- Build program → "' .. bufname .. '"', cmd = cmd, components = { "default" } } },
+            },
           })
           task:start()
         elseif selected_option == "option3" then
@@ -45,7 +56,16 @@ return {
           local output = vim.fn.getcwd() .. "/bin/" .. vim.fn.fnamemodify(bufname, ":t:r")
           local task = overseer.new_task({
             name = "- C++ compiler",
-            strategy = { "orchestrator", tasks = { { name = "- Run program → \"" .. output .. "\"", cmd = '"' .. output .. '"', components = { "default" } } } },
+            strategy = {
+              "orchestrator",
+              tasks = {
+                {
+                  name = '- Run program → "' .. output .. '"',
+                  cmd = '"' .. output .. '"',
+                  components = { "default" },
+                },
+              },
+            },
           })
           task:start()
         else

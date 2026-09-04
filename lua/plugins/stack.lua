@@ -73,10 +73,21 @@ return {
   },
 
   -- LSP: html/css/json/yaml/lua + eslint for JS errors, intelephense strict for PHP
+  -- Fix clangd --function-arg-placeholders invalid for clangd 22 (was bare flag, needs value or omitted)
   {
     "neovim/nvim-lspconfig",
     opts = {
       servers = {
+        clangd = {
+          cmd = {
+            "clangd",
+            "--background-index",
+            "--clang-tidy",
+            "--header-insertion=iwyu",
+            "--completion-style=detailed",
+            "--fallback-style=llvm",
+          },
+        },
         html = {},
         cssls = {},
         css_variables = {},

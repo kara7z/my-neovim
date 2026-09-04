@@ -62,7 +62,14 @@ vim.api.nvim_create_autocmd("User", {
           local message = result.value.message or ""
           local t = title:lower()
           local m = message:lower()
-          if title:match("Validate") or message:match("Validate") or t:match("publish") or m:match("publish") or t:match("diagnostics") or m:match("diagnostics") then
+          if
+            title:match("Validate")
+            or message:match("Validate")
+            or t:match("publish")
+            or m:match("publish")
+            or t:match("diagnostics")
+            or m:match("diagnostics")
+          then
             return
           end
         end
@@ -95,7 +102,14 @@ vim.api.nvim_create_autocmd("LspAttach", {
           local message = result.value.message or ""
           local t = title:lower()
           local m = message:lower()
-          if title:match("Validate") or message:match("Validate") or t:match("publish") or m:match("publish") or t:match("diagnostics") or m:match("diagnostics") then
+          if
+            title:match("Validate")
+            or message:match("Validate")
+            or t:match("publish")
+            or m:match("publish")
+            or t:match("diagnostics")
+            or m:match("diagnostics")
+          then
             return
           end
         end
