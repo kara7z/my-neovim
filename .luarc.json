@@ -1,0 +1,7 @@
+{
+  "diagnostics.globals": ["vim", "LazyVim"],
+  "diagnostics.disable": ["trailing-space"],
+  "workspace.checkThirdParty": "Disable",
+  "runtime.version": "LuaJIT",
+  "runtime.pathStrict": false
+}
