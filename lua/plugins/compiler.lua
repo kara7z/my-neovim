@@ -62,25 +62,4 @@ return {
       task_list = { direction = "bottom", min_height = 25, max_height = 25, default_detail = 1 },
     },
   },
-  -- Fallback: direct g++ compile for current file (F5) - just result, no g++ echo
-  {
-    "folke/which-key.nvim",
-    optional = true,
-    config = function()
-      vim.keymap.set("n", "<F5>", function()
-        local file = vim.fn.expand("%:p")
-        if file == "" then
-          vim.notify("No file", vim.log.levels.WARN)
-          return
-        end
-        local out = vim.fn.getcwd() .. "/bin/" .. vim.fn.fnamemodify(file, ":t:r")
-        vim.fn.mkdir(vim.fn.getcwd() .. "/bin", "p")
-        require("overseer").new_task({
-          name = "Direct g++ " .. vim.fn.fnamemodify(file, ":t"),
-          cmd = string.format('g++ "%s" -o "%s" -Wall -g && "%s"', file, out, out),
-          components = { "default" },
-        }):start()
-      end, { desc = "Direct g++ current file" })
-    end,
-  },
 }
