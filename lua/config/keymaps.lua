@@ -78,13 +78,13 @@ vim.keymap.set(
 -- via :<C-u>, so multi-line selections (e.g. V2j selects 3 lines) move as a whole;
 -- v:count1 handles "2 Alt-j" to move block by 2, silent!+keepjumps suppresses E16, noautocmd suppresses brace flash
 vim.keymap.set(
-  "v",
+  "x",
   "<A-j>",
   ":<C-u>silent! keepjumps execute \"'<,'>move '>+\" . v:count1<cr>:noautocmd silent! normal! gv=gv<cr>",
   { desc = "Move selection down", silent = true }
 )
 vim.keymap.set(
-  "v",
+  "x",
   "<A-k>",
   ":<C-u>silent! keepjumps execute \"'<,'>move '<-\" . (v:count1 + 1)<cr>:noautocmd silent! normal! gv=gv<cr>",
   { desc = "Move selection up", silent = true }

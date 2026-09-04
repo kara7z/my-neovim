@@ -1,7 +1,7 @@
 return {
   "okuuva/auto-save.nvim",
   version = "^1.0.0", -- overrides LazyVim global version=false to pin stable tag
-  event = { "InsertLeave", "TextChanged" },
+  event = { "InsertLeave", "TextChanged", "BufLeave", "FocusLost" },
   cmd = "ASToggle",
   opts = {
     enabled = true,
