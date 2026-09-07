@@ -3,6 +3,7 @@ return {
     "nvim-mini/mini.surround",
     version = "*",
     opts = {
+      silent = true,
       mappings = {
         add = "sa",
         delete = "sd",

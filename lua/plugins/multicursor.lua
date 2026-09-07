@@ -13,6 +13,7 @@ return {
     vim.g.VM_highlight_matches = "underline"
     vim.g.VM_case_setting = "sensitive"
     vim.g.VM_silent_exit = 1
+    vim.g.VM_show_warnings = 0
   end,
   config = function()
     -- Ctrl+Shift+d to return to last cursor (VSCode style) — v covers visual+select
