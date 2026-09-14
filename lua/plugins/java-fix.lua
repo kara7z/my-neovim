@@ -33,6 +33,28 @@ return {
       if vim.fn.executable(java21) ~= 1 then
         java21 = vim.fn.exepath("java")
       end
+      -- Only advertise JVMs that actually exist (you only have JDK 26).
+      -- Listing a missing path with default=true makes jdtls complain.
+      local runtimes = {}
+      local candidates = {
+        { name = "JavaSE-17", path = "/usr/lib/jvm/java-17-openjdk" },
+        { name = "JavaSE-21", path = "/usr/lib/jvm/java-21-openjdk" },
+        { name = "JavaSE-26", path = "/usr/lib/jvm/java-26-openjdk" },
+      }
+      for _, r in ipairs(candidates) do
+        if vim.fn.executable(r.path .. "/bin/java") == 1 then
+          table.insert(runtimes, r)
+        end
+      end
+      if #runtimes > 0 then
+        runtimes[#runtimes].default = true
+      else
+        -- fallback: use whatever `java` resolves to
+        local fallback = vim.fn.exepath("java"):gsub("/bin/java$", "")
+        if fallback ~= "" then
+          runtimes = { { name = "JavaSE-26", path = fallback, default = true } }
+        end
+      end
       local cmd = { jdtls_bin, "--java-executable", java21 }
       if vim.fn.filereadable(lombok) == 1 then
         table.insert(cmd, string.format("--jvm-arg=-javaagent:%s", lombok))
@@ -60,11 +82,7 @@ return {
           },
           configuration = {
             updateBuildConfiguration = "interactive",
-            runtimes = {
-              { name = "JavaSE-17", path = "/usr/lib/jvm/java-17-openjdk", default = true },
-              { name = "JavaSE-21", path = "/usr/lib/jvm/java-21-openjdk" },
-              { name = "JavaSE-26", path = "/usr/lib/jvm/java-26-openjdk" },
-            },
+            runtimes = runtimes,
           },
           edit = {
             validateAllOpenBuffersOnChanges = false,
