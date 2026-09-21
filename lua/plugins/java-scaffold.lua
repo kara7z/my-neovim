@@ -56,7 +56,18 @@ return {
 .DS_Store
 ]]
 
-      local function make_main(fqcn)
+      local function make_main(pkg, fqcn)
+        if pkg and pkg ~= "" then
+          return string.format([[package %s;
+
+public class Main {
+
+    public static void main(String[] args) {
+        System.out.println("Hello from %s!");
+    }
+}
+]], pkg, fqcn)
+        end
         return string.format([[public class Main {
 
     public static void main(String[] args) {
@@ -192,7 +203,7 @@ return {
   </build>
 </project>
 ]], pkg, dir))
-          write(java_dir .. "/Main.java", make_main(pkg .. ".Main"))
+          write(java_dir .. "/Main.java", make_main(pkg, pkg .. ".Main"))
           vim.notify(string.format("Created Maven project %s", root), vim.log.levels.INFO)
         else
           -- ── Simple mode ───────────────────────────────────────────────────
@@ -201,7 +212,7 @@ return {
           end
           vim.fn.mkdir(root .. "bin", "p")
           write(root .. ".gitignore", GITIGNORE)
-          write(root .. "src/Main.java", make_main("Main"))
+          write(root .. "src/Main.java", make_main("", "Main"))
           vim.notify(string.format("Created project %s", root), vim.log.levels.INFO)
         end
       end, { nargs = "+", desc = "Create a Java project" })
