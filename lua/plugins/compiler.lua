@@ -1,7 +1,7 @@
 return {
   {
     "Zeioth/compiler.nvim",
-    cmd = { "CompilerOpen", "CompilerToggleResults", "CompilerRedo" },
+    cmd = { "CompilerOpen", "CompilerToggleResults", "CompilerRedo", "CompilerStop" },
     event = "VeryLazy",
     dependencies = { "stevearc/overseer.nvim", "nvim-telescope/telescope.nvim" },
     opts = {},
@@ -15,6 +15,30 @@ return {
         "on_complete_dispose",
         "open_output",
       }
+      --- Project root for a file: pom dir -> git root -> file dir -> cwd.
+      ---@param bufname string
+      ---@return string
+      local function project_root_for(bufname)
+        local start = bufname ~= "" and vim.fs.dirname(bufname) or vim.fn.getcwd()
+        local pom = vim.fs.find("pom.xml", { path = start, upward = true })[1]
+        if pom then
+          return vim.fn.fnamemodify(pom, ":h")
+        end
+        local git = vim.fs.find(".git", { path = start, upward = true })[1]
+        if git then
+          return vim.fs.dirname(git)
+        end
+        if bufname ~= "" then
+          return vim.fs.dirname(bufname)
+        end
+        return vim.fn.getcwd()
+      end
+      --- Shell-escape a path for `sh -c` task strings (handles spaces AND quotes).
+      ---@param s string
+      ---@return string
+      local function sh(s)
+        return vim.fn.shellescape(s)
+      end
       -- Fix C++: compile only current file (not all *.cpp) to avoid multiple definition of main
       -- Default cpp.lua compiles all *.cpp in cwd to bin/program, which fails when each .cpp has its own main
       local arguments = "-Wall -g -std=c++17 -Wno-unused-parameter"
@@ -37,31 +61,31 @@ return {
             if vim.bo.modified then
               vim.cmd("silent write")
             end
-            local output_dir = vim.fn.getcwd() .. "/bin/"
+            local output_dir = project_root_for(bufname) .. "/bin/"
             local output = output_dir .. vim.fn.fnamemodify(bufname, ":t:r")
             local cmd
             if selected_option == "option1" then
               -- Build and run (show program output)
-              cmd = 'mkdir -p "'
-                .. output_dir
-                .. '" && g++ "'
-                .. bufname
-                .. '" -o "'
-                .. output
-                .. '" '
+              cmd = "mkdir -p "
+                .. sh(output_dir)
+                .. " && g++ "
+                .. sh(bufname)
+                .. " -o "
+                .. sh(output)
+                .. " "
                 .. arguments
-                .. ' && echo "--- Program output ---" && "'
-                .. output
-                .. '" && echo "" && echo "--- Done ---"'
+                .. ' && echo "--- Program output ---" && '
+                .. sh(output)
+                .. ' && echo "" && echo "--- Done ---"'
             else
               -- option2 (Build) and option4 (Build solution -> also single-file)
-              cmd = 'mkdir -p "'
-                .. output_dir
-                .. '" && g++ "'
-                .. bufname
-                .. '" -o "'
-                .. output
-                .. '" '
+              cmd = "mkdir -p "
+                .. sh(output_dir)
+                .. " && g++ "
+                .. sh(bufname)
+                .. " -o "
+                .. sh(output)
+                .. " "
                 .. arguments
                 .. ' && echo "Build OK: '
                 .. output
@@ -86,8 +110,8 @@ return {
               vim.notify("Save file first (no buffer name)", vim.log.levels.ERROR)
               return
             end
-            local output = vim.fn.getcwd() .. "/bin/" .. vim.fn.fnamemodify(bufname, ":t:r")
-            local cmd = 'echo "--- Program output ---" && "' .. output .. '" && echo "" && echo "--- Done ---"'
+            local output = project_root_for(bufname) .. "/bin/" .. vim.fn.fnamemodify(bufname, ":t:r")
+            local cmd = 'echo "--- Program output ---" && ' .. sh(output) .. ' && echo "" && echo "--- Done ---"'
             local task = overseer.new_task({
               cmd = cmd,
               name = '- Run program → "' .. output .. '"',
@@ -121,29 +145,29 @@ return {
             if vim.bo.modified then
               vim.cmd("silent write")
             end
-            local output_dir = vim.fn.getcwd() .. "/bin/"
+            local output_dir = project_root_for(bufname) .. "/bin/"
             local output = output_dir .. vim.fn.fnamemodify(bufname, ":t:r")
             local cmd
             if selected_option == "option1" then
-              cmd = 'mkdir -p "'
-                .. output_dir
-                .. '" && gcc "'
-                .. bufname
-                .. '" -o "'
-                .. output
-                .. '" '
+              cmd = "mkdir -p "
+                .. sh(output_dir)
+                .. " && gcc "
+                .. sh(bufname)
+                .. " -o "
+                .. sh(output)
+                .. " "
                 .. c_args
-                .. ' && echo "--- Program output ---" && "'
-                .. output
-                .. '" && echo "" && echo "--- Done ---"'
+                .. ' && echo "--- Program output ---" && '
+                .. sh(output)
+                .. ' && echo "" && echo "--- Done ---"'
             else
-              cmd = 'mkdir -p "'
-                .. output_dir
-                .. '" && gcc "'
-                .. bufname
-                .. '" -o "'
-                .. output
-                .. '" '
+              cmd = "mkdir -p "
+                .. sh(output_dir)
+                .. " && gcc "
+                .. sh(bufname)
+                .. " -o "
+                .. sh(output)
+                .. " "
                 .. c_args
                 .. ' && echo "Build OK: '
                 .. output
@@ -167,8 +191,8 @@ return {
               vim.notify("Save file first (no buffer name)", vim.log.levels.ERROR)
               return
             end
-            local output = vim.fn.getcwd() .. "/bin/" .. vim.fn.fnamemodify(bufname, ":t:r")
-            local cmd = 'echo "--- Program output ---" && "' .. output .. '" && echo "" && echo "--- Done ---"'
+            local output = project_root_for(bufname) .. "/bin/" .. vim.fn.fnamemodify(bufname, ":t:r")
+            local cmd = 'echo "--- Program output ---" && ' .. sh(output) .. ' && echo "" && echo "--- Done ---"'
             local task = overseer.new_task({
               cmd = cmd,
               name = '- Run program → "' .. output .. '"',
@@ -184,6 +208,20 @@ return {
             return orig_c_action(selected_option)
           end
         end
+      end
+
+      -- Resolve the fully-qualified class name of the current buffer
+      -- (package declaration + file name). Used for Maven exec:java.
+      local function java_fqcn(bufname)
+        local pkg = nil
+        for _, line in ipairs(vim.api.nvim_buf_get_lines(0, 0, 40, false)) do
+          pkg = line:match("^%s*package%s+([%w%.]+)%s*;")
+          if pkg then
+            break
+          end
+        end
+        local stem = vim.fn.fnamemodify(bufname, ":t:r")
+        return (pkg and pkg .. "." or "") .. stem
       end
 
       -- F5: universal single-file build & run for every language (no picker)
@@ -213,95 +251,135 @@ return {
         local ft = vim.bo.filetype
         local ext = vim.fn.fnamemodify(bufname, ":e"):lower()
         local stem = vim.fn.fnamemodify(bufname, ":t:r")
-        local cwd = vim.fn.getcwd()
+        local cwd = project_root_for(bufname)
         local output_dir = cwd .. "/bin/"
         local output = output_dir .. stem
 
         if ft == "c" then
-          local cmd = 'mkdir -p "'
-            .. output_dir
-            .. '" && gcc "'
-            .. bufname
-            .. '" -o "'
-            .. output
-            .. '" -Wall -g && echo "--- Program output ---" && "'
-            .. output
-            .. '" && echo "" && echo "--- Done ---"'
+          local cmd = "mkdir -p "
+            .. sh(output_dir)
+            .. " && gcc "
+            .. sh(bufname)
+            .. " -o "
+            .. sh(output)
+            .. ' -Wall -g && echo "--- Program output ---" && '
+            .. sh(output)
+            .. ' && echo "" && echo "--- Done ---"'
           f5_start(cmd, '- Build & run (c) → "' .. bufname .. '"')
         elseif ft == "cpp" then
-          local cmd = 'mkdir -p "'
-            .. output_dir
-            .. '" && g++ "'
-            .. bufname
-            .. '" -o "'
-            .. output
-            .. '" '
+          local cmd = "mkdir -p "
+            .. sh(output_dir)
+            .. " && g++ "
+            .. sh(bufname)
+            .. " -o "
+            .. sh(output)
+            .. " "
             .. arguments
-            .. ' && echo "--- Program output ---" && "'
-            .. output
-            .. '" && echo "" && echo "--- Done ---"'
+            .. ' && echo "--- Program output ---" && '
+            .. sh(output)
+            .. ' && echo "" && echo "--- Done ---"'
           f5_start(cmd, '- Build & run (cpp) → "' .. bufname .. '"')
         elseif ft == "java" then
-          local cmd = 'mkdir -p "'
-            .. output_dir
-            .. '" && javac -d "'
-            .. output_dir
-            .. '" -Xlint:all "'
-            .. bufname
-            .. '" && echo "--- Program output ---" && java -cp "'
-            .. output_dir
-            .. '" "'
-            .. stem
-            .. '" && echo "" && echo "--- Done ---"'
-          f5_start(cmd, '- Build & run (java) → "' .. bufname .. '"')
+          -- Decide how to compile based on project structure:
+          --   1. Maven project (pom.xml exists)      → mvn compile exec:java
+          --   2. Simple project (src/ exists, no pom)  → javac src/**/*.java → bin/, run FQCN
+          --   3. Single file (no src/, no pom)         → javac current file → bin/, run it
+          local fdir = vim.fs.dirname(bufname)
+          local pom = vim.fs.find("pom.xml", { path = fdir, upward = true })[1]
+          local has_src = vim.fn.isdirectory(cwd .. "/src") == 1
+
+          if pom then
+            -- ── Maven ──────────────────────────────────────────────────────
+            local root = vim.fn.fnamemodify(pom, ":h")
+            local wrapper = root .. "/mvnw"
+            local mvn = vim.fn.executable(wrapper) == 1 and wrapper or "mvn"
+            local fqcn = java_fqcn(bufname)
+            local cmd = "cd "
+              .. sh(root)
+              .. " && "
+              .. sh(mvn)
+              .. ' -q -DskipTests compile org.codehaus.mojo:exec-maven-plugin:3.1.0:java -Dexec.mainClass="'
+              .. fqcn
+              .. '" && echo "" && echo "--- Done ---"'
+            f5_start(cmd, '- Build & run (maven) → "' .. fqcn .. '"')
+
+          elseif has_src then
+            -- ── Simple multi-file project (src/models, src/services, …) ────
+            local out = cwd .. "/bin"
+            local fqcn = java_fqcn(bufname)
+            local cmd = "cd "
+              .. sh(cwd)
+              .. " && mkdir -p "
+              .. sh(out)
+              .. ' && find src -name "*.java" -print0 | xargs -0 javac -d '
+              .. sh(out)
+              .. ' -Xlint:all && echo "--- Program output ---" && java -cp '
+              .. sh(out)
+              .. ' "'
+              .. fqcn
+              .. '" && echo "" && echo "--- Done ---"'
+            f5_start(cmd, '- Build & run (src/) → "' .. fqcn .. '"')
+
+          else
+            -- ── Single file ────────────────────────────────────────────────
+            local cmd = "mkdir -p "
+              .. sh(output_dir)
+              .. " && javac -d "
+              .. sh(output_dir)
+              .. " -Xlint:all "
+              .. sh(bufname)
+              .. ' && echo "--- Program output ---" && java -cp '
+              .. sh(output_dir)
+              .. ' "'
+              .. stem
+              .. '" && echo "" && echo "--- Done ---"'
+            f5_start(cmd, '- Build & run (java) → "' .. bufname .. '"')
+          end
         elseif ft == "python" then
-          local py = vim.fn.executable("python") == 1 and "python" or "python3"
-          local cmd = 'echo "--- Program output ---" && '
-            .. py
-            .. ' "'
-            .. bufname
-            .. '" && echo "" && echo "--- Done ---"'
+          -- prefer python3 (python may be py2 on some systems)
+          local py = vim.fn.executable("python3") == 1 and "python3" or "python"
+          local cmd = 'echo "--- Program output ---" && ' .. py .. " " .. sh(bufname) .. ' && echo "" && echo "--- Done ---"'
           f5_start(cmd, '- Run (python) → "' .. bufname .. '"')
         elseif ft == "lua" then
-          local cmd = 'echo "--- Program output ---" && lua "' .. bufname .. '" && echo "" && echo "--- Done ---"'
+          local cmd = 'echo "--- Program output ---" && lua ' .. sh(bufname) .. ' && echo "" && echo "--- Done ---"'
           f5_start(cmd, '- Run (lua) → "' .. bufname .. '"')
         elseif ft == "sh" or ft == "bash" then
-          local cmd = 'echo "--- Program output ---" && bash "' .. bufname .. '" && echo "" && echo "--- Done ---"'
+          local cmd = 'echo "--- Program output ---" && bash ' .. sh(bufname) .. ' && echo "" && echo "--- Done ---"'
           f5_start(cmd, '- Run (sh) → "' .. bufname .. '"')
         elseif ft == "php" then
-          local cmd = 'echo "--- Program output ---" && php "' .. bufname .. '" && echo "" && echo "--- Done ---"'
+          local cmd = 'echo "--- Program output ---" && php ' .. sh(bufname) .. ' && echo "" && echo "--- Done ---"'
           f5_start(cmd, '- Run (php) → "' .. bufname .. '"')
         elseif ft == "javascript" or ft == "javascriptreact" then
           if ext == "jsx" then
-            local cmd = 'echo "--- Program output ---" && npx --yes tsx "'
-              .. bufname
-              .. '" && echo "" && echo "--- Done ---"'
+            local cmd = 'echo "--- Program output ---" && npx --yes tsx '
+              .. sh(bufname)
+              .. ' && echo "" && echo "--- Done ---"'
             f5_start(cmd, '- Run (tsx) → "' .. bufname .. '"')
           else
-            local cmd = 'echo "--- Program output ---" && node "' .. bufname .. '" && echo "" && echo "--- Done ---"'
+            local cmd = 'echo "--- Program output ---" && node ' .. sh(bufname) .. ' && echo "" && echo "--- Done ---"'
             f5_start(cmd, '- Run (node) → "' .. bufname .. '"')
           end
         elseif ft == "typescript" or ft == "typescriptreact" then
-          local cmd = 'echo "--- Program output ---" && npx --yes tsx "'
-            .. bufname
-            .. '" && echo "" && echo "--- Done ---"'
+          local cmd = 'echo "--- Program output ---" && npx --yes tsx '
+            .. sh(bufname)
+            .. ' && echo "" && echo "--- Done ---"'
           f5_start(cmd, '- Run (tsx) → "' .. bufname .. '"')
         elseif ft == "rust" then
-          local cmd = 'mkdir -p "'
-            .. output_dir
-            .. '" && rustc "'
-            .. bufname
-            .. '" -o "'
-            .. output
-            .. '" && echo "--- Program output ---" && "'
-            .. output
-            .. '" && echo "" && echo "--- Done ---"'
+          local cmd = "mkdir -p "
+            .. sh(output_dir)
+            .. " && rustc "
+            .. sh(bufname)
+            .. " -o "
+            .. sh(output)
+            .. ' && echo "--- Program output ---" && '
+            .. sh(output)
+            .. ' && echo "" && echo "--- Done ---"'
           f5_start(cmd, '- Build & run (rust) → "' .. bufname .. '"')
         elseif ft == "go" then
-          local cmd = 'echo "--- Program output ---" && go run "' .. bufname .. '" && echo "" && echo "--- Done ---"'
+          local cmd = 'echo "--- Program output ---" && go run ' .. sh(bufname) .. ' && echo "" && echo "--- Done ---"'
           f5_start(cmd, '- Run (go) → "' .. bufname .. '"')
         elseif ft == "ruby" then
-          local cmd = 'echo "--- Program output ---" && ruby "' .. bufname .. '" && echo "" && echo "--- Done ---"'
+          local cmd = 'echo "--- Program output ---" && ruby ' .. sh(bufname) .. ' && echo "" && echo "--- Done ---"'
           f5_start(cmd, '- Run (ruby) → "' .. bufname .. '"')
         else
           -- Fallback: use compiler.nvim project runner if a backend exists, else notify
@@ -326,7 +404,7 @@ return {
   },
   {
     "stevearc/overseer.nvim",
-    cmd = { "CompilerOpen", "CompilerToggleResults", "CompilerRedo" },
+    cmd = { "CompilerOpen", "CompilerToggleResults", "CompilerRedo", "CompilerStop" },
     opts = {
       task_list = { direction = "bottom", min_height = 25, max_height = 25, default_detail = 2 },
       -- Silence SUCCESS popups globally (e.g. compiler.nvim java tasks):

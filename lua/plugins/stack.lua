@@ -58,6 +58,8 @@ return {
         "html-lsp",
         "intelephense",
         "jdtls",
+        "java-debug-adapter",
+        "java-test",
         "lua-language-server",
         "marksman",
         "prettier",
@@ -89,8 +91,17 @@ return {
           },
         },
         html = {},
-        cssls = {},
-        css_variables = {},
+        cssls = {
+          settings = {
+            css = { lint = { unknownAtRules = "error", emptyRules = "warn", duplicateProperties = "error" } },
+            scss = { lint = { unknownAtRules = "error", emptyRules = "warn", duplicateProperties = "error" } },
+            less = { lint = { unknownAtRules = "error", emptyRules = "warn", duplicateProperties = "error" } },
+          },
+        },
+        -- Disabled: css-variables-language-server crashes with EACCES scandir on
+        -- Steam Proton prefixes (dosdevices/z:/boot) when cwd is $HOME, exits 1.
+        -- cssls + tailwindcss already cover CSS; re-enable with a tight root_dir if needed.
+        css_variables = { enabled = false },
         emmet_language_server = {},
         jsonls = {},
         yamlls = {},
@@ -151,6 +162,7 @@ return {
   },
 
   -- Conform: prettier + clang-format on save (pint conditional for non-composer projects)
+  -- php uses pint only when composer.json exists; blade files use blade_formatter.
   {
     "stevearc/conform.nvim",
     opts = {
@@ -171,7 +183,8 @@ return {
         markdown = { "prettier" },
         lua = { "stylua" },
         sh = { "shfmt" },
-        php = { "pint", "blade_formatter" },
+        php = { "pint" },
+        blade = { "blade_formatter" },
       },
       formatters = {
         pint = {
@@ -187,10 +200,12 @@ return {
   },
 
   -- Blade filetype detection (Laravel) + .env
+  -- NOTE: plenary is also specced in java-scaffold.lua (init defines commands).
+  -- Use init here too so both init functions run (lazy merges same-plugin specs;
+  -- mixing init + config risks the config override hiding commands).
   {
     "nvim-lua/plenary.nvim",
-    event = "BufReadPre",
-    config = function()
+    init = function()
       vim.filetype.add({
         pattern = {
           [".*%.blade%.php"] = "blade",

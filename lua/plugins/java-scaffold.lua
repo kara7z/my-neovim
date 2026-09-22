@@ -42,13 +42,19 @@ return {
       ---@param name string
       ---@return boolean
       local function valid_ident(name)
-        return name:match("^[%a_][%w_]*$") ~= nil
+        -- Java allows letters, _, $ start; letters/digits/underscore/$ rest.
+        return name:match("^[%a_$][%w_$]*$") ~= nil
       end
 
       local function write(path, content)
-        local f = assert(io.open(path, "w"))
+        local f, err = io.open(path, "w")
+        if not f then
+          vim.notify("JavaScaffold: cannot write " .. path .. ": " .. tostring(err), vim.log.levels.ERROR)
+          return false
+        end
         f:write(content)
         f:close()
+        return true
       end
 
       local GITIGNORE = [[bin/
@@ -113,10 +119,12 @@ public class Main {
       -- ── Simple mode directories ─────────────────────────────────────────
       local SIMPLE_DIRS = { "models", "services", "DAO", "enums", "utils" }
 
-      local function is_simple_project()
+      ---@param base string|nil project dir (defaults to cwd)
+      ---@return boolean
+      local function is_simple_project(base)
+        base = base or vim.fn.getcwd()
         -- true when src/ exists but no pom.xml (terminal project)
-        return vim.fn.isdirectory(vim.fn.getcwd() .. "/src") == 1
-          and vim.fn.filereadable(vim.fn.getcwd() .. "/pom.xml") ~= 1
+        return vim.fn.isdirectory(base .. "/src") == 1 and vim.fn.filereadable(base .. "/pom.xml") ~= 1
       end
 
       -- ── :JavaProject ─────────────────────────────────────────────────────
@@ -131,13 +139,35 @@ public class Main {
         local dir
         local pkg = nil
 
-        if has_dots(name) then
+        local slash_pkg, slash_dir = name:match("^([^/]+)/([^/]+)$")
+        if slash_pkg and slash_dir then
+          -- Maven mode slash-separated: :JavaProject com.example/myapp
+          pkg = slash_pkg
+          dir = slash_dir
+          if args[2] then
+            vim.notify("JavaProject: extra arg ignored in slash mode", vim.log.levels.WARN)
+          end
+        elseif has_dots(name) then
           -- Maven mode: :JavaProject com.example myapp
           pkg = name
           dir = args[2] or "myapp"
         else
           -- Simple mode: :JavaProject myproject
+          if name:find("/") then
+            vim.notify("JavaProject: simple name must not contain '/'", vim.log.levels.ERROR)
+            return
+          end
           dir = name
+        end
+
+        if pkg then
+          -- validate dotted package: each segment a valid Java ident
+          for part in pkg:gmatch("[^%.]+") do
+            if not valid_ident(part) then
+              vim.notify("JavaProject: invalid package segment '" .. part .. "'", vim.log.levels.ERROR)
+              return
+            end
+          end
         end
 
         if not dir:match("^[%w_.-]+$") then
@@ -260,10 +290,17 @@ public class Main {
           return
         end
 
+        if folder and not folder:match("^[%w_%-]+$") then
+          vim.notify("JavaClass: invalid folder '" .. folder .. "' (use [A-Za-z0-9_-])", vim.log.levels.ERROR)
+          return
+        end
+
         -- ── Find the source root ─────────────────────────────────────────────
-        local base = vim.fn.getcwd()
-        local pom = vim.fs.find("pom.xml", { upward = true })[1]
-        local simple = not pom and vim.fn.isdirectory(base .. "/src") == 1
+        local bufname = vim.api.nvim_buf_get_name(0)
+        local start = bufname ~= "" and vim.fs.dirname(bufname) or vim.fn.getcwd()
+        local pom = vim.fs.find("pom.xml", { path = start, upward = true })[1]
+        local base = pom and vim.fn.fnamemodify(pom, ":h") or vim.fn.getcwd()
+        local simple = is_simple_project(base)
 
         local target_dir
         if pom then

@@ -3,7 +3,9 @@
 -- Add any additional keymaps here
 
 -- Alt-j/k to move lines (works for single line in Normal/Insert and multi-line in Visual)
--- Fixed: E16 Invalid range at buffer boundaries, count support, silent handling
+-- E16 guarded at buffer boundaries, count support, silent handling.
+-- Undo grouping: :move creates a block, :undojoin joins the following == reindent
+-- into the same block (per :h undojoin "join further changes with previous").
 
 local function move_line_down()
   if not vim.bo.modifiable or vim.bo.readonly then

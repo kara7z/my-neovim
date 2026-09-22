@@ -17,10 +17,12 @@ if vim.fn.executable("wl-copy") == 1 and vim.fn.executable("wl-paste") == 1 then
     },
     paste = {
       ["+"] = function()
-        return vim.fn.systemlist('wl-paste --no-newline 2>/dev/null | tr -d "\r"')
+        local lines = vim.fn.systemlist('wl-paste --no-newline 2>/dev/null | tr -d "\r"')
+        return { lines, vim.fn.getregtype("+") }
       end,
       ["*"] = function()
-        return vim.fn.systemlist('wl-paste --primary --no-newline 2>/dev/null | tr -d "\r"')
+        local lines = vim.fn.systemlist('wl-paste --primary --no-newline 2>/dev/null | tr -d "\r"')
+        return { lines, vim.fn.getregtype("*") }
       end,
     },
     cache_enabled = 1,
@@ -150,7 +152,10 @@ vim.api.nvim_create_autocmd("User", {
   pattern = "VeryLazy",
   callback = function()
     vim.schedule(function()
-      vim.opt.clipboard = "unnamedplus"
+      -- only force when wl-clipboard is available; don't clobber OSC52/SSH
+      if vim.fn.executable("wl-copy") == 1 and vim.opt.clipboard:get()[1] ~= "unnamedplus" then
+        vim.opt.clipboard = "unnamedplus"
+      end
     end)
   end,
 })
