@@ -227,6 +227,16 @@ return {
       -- F5: universal single-file build & run for every language (no picker)
       local function f5_start(cmd, name)
         local overseer = require("overseer")
+        -- Dynamic: stop any previous run so output always belongs to current buffer,
+        -- never a stale task from another project (e.g. albaraka vs Al Baraka).
+        for _, t in ipairs(overseer.list_tasks({})) do
+          local s = t.status
+          if s == "RUNNING" or s == "PENDING" then
+            pcall(function()
+              t:stop()
+            end)
+          end
+        end
         local task = overseer.new_task({
           cmd = cmd,
           name = name,
@@ -301,7 +311,7 @@ return {
               .. ' -q -DskipTests compile org.codehaus.mojo:exec-maven-plugin:3.1.0:java -Dexec.mainClass="'
               .. fqcn
               .. '" && echo "" && echo "--- Done ---"'
-            f5_start(cmd, '- Build & run (maven) → "' .. fqcn .. '"')
+            f5_start(cmd, '- Build & run (maven) → "' .. vim.fn.fnamemodify(root, ":t") .. " » " .. fqcn .. '"')
 
           elseif has_src then
             -- ── Simple multi-file project (src/models, src/services, …) ────
@@ -318,7 +328,7 @@ return {
               .. ' "'
               .. fqcn
               .. '" && echo "" && echo "--- Done ---"'
-            f5_start(cmd, '- Build & run (src/) → "' .. fqcn .. '"')
+            f5_start(cmd, '- Build & run (src/) → "' .. vim.fn.fnamemodify(cwd, ":t") .. " » " .. fqcn .. '"')
 
           else
             -- ── Single file ────────────────────────────────────────────────

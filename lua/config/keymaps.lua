@@ -92,8 +92,12 @@ vim.keymap.set(
   { desc = "Move selection up", silent = true }
 )
 
--- Ctrl-z Undo / Ctrl-y Redo (just Ctrl-y, like b7b49ca)
+-- Ctrl-z Undo / Ctrl-y Redo
+-- NOTE: insert-mode <C-y> is reserved for blink.cmp select_and_accept
+-- (see lua/plugins/blink.lua). Mapping it to redo here would shadow
+-- completion confirm and break Enter/Tab flow after VeryLazy loads.
 vim.keymap.set({ "n", "v" }, "<C-z>", "u", { desc = "Undo", silent = true })
 vim.keymap.set("i", "<C-z>", "<C-o>u", { desc = "Undo", silent = true })
 vim.keymap.set({ "n", "v" }, "<C-y>", "<C-r>", { desc = "Redo", silent = true })
-vim.keymap.set("i", "<C-y>", "<C-o><C-r>", { desc = "Redo", silent = true })
+-- insert redo moved to <C-S-z> so <C-y> stays free for blink
+vim.keymap.set("i", "<C-S-z>", "<C-o><C-r>", { desc = "Redo", silent = true })

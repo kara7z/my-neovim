@@ -80,6 +80,8 @@ return {
     "neovim/nvim-lspconfig",
     opts = {
       servers = {
+        sqlls = { enabled = false },
+        sqls = { enabled = false },
         clangd = {
           cmd = {
             "clangd",
