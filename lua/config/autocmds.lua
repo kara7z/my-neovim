@@ -89,3 +89,48 @@ vim.api.nvim_create_user_command("BlinkDebug", function()
   vim.fn.writefile(lines, "/tmp/blink_debug.txt")
   vim.notify("BlinkDebug written to /tmp/blink_debug.txt", vim.log.levels.INFO)
 end, { desc = "Dump blink/LSP state when Enter stops working" })
+
+-- Blink <CR> guard: blink applies buffer-local insert mappings once per
+-- buffer on InsertEnter and skips re-apply if ANY blink mapping exists
+-- (see blink.cmp/keymap/apply.lua). If another plugin overwrites buffer
+-- <CR> afterwards (LspAttach, multicursor exit, etc.), blink never restores
+-- it until restart -> Enter does newline despite visible menu.
+-- Re-apply on every InsertEnter when <CR> is no longer blink's.
+vim.api.nvim_create_autocmd("InsertEnter", {
+  desc = "Restore blink <CR> if overwritten",
+  callback = function()
+    local ok_cfg, cfg = pcall(require, "blink.cmp.config")
+    local ok_km, km = pcall(require, "blink.cmp.keymap")
+    local ok_apply, apply = pcall(require, "blink.cmp.keymap.apply")
+    if not (ok_cfg and ok_km and ok_apply) then
+      return
+    end
+    if not cfg.enabled() then
+      return
+    end
+    local buf_maps = vim.api.nvim_buf_get_keymap(0, "i")
+    local has_blink = false
+    local cr_is_blink = false
+    for _, m in ipairs(buf_maps) do
+      if m.desc and m.desc:find("^blink%.cmp") then
+        has_blink = true
+        -- lhs can be "<CR>" or raw "\r"
+        if m.lhs == "<CR>" or m.lhs == "\r" or (m.lhsraw or "") == "\r" then
+          cr_is_blink = true
+          break
+        end
+      end
+    end
+    if has_blink and not cr_is_blink then
+      -- Clear stale blink buffer mappings so apply doesn't early-return,
+      -- then re-apply current config mappings to this buffer.
+      for _, m in ipairs(vim.api.nvim_buf_get_keymap(0, "i")) do
+        if m.desc and m.desc:find("^blink%.cmp") then
+          pcall(vim.api.nvim_buf_del_keymap, 0, "i", m.lhs)
+        end
+      end
+      local mappings = km.get_mappings(cfg.keymap, "default")
+      apply.keymap_to_current_buffer(mappings)
+    end
+  end,
+})
