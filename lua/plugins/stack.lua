@@ -1,5 +1,8 @@
 -- Web dev stack: Laravel PHP (blade), Java, Angular, C/C++, Vue, React, TS/JS, Node, Lua, HTML/CSS/Tailwind
 -- Full web stack kept; C++ first-class via clangd + clang-format + codelldb
+-- Prefer the system package when available; keep Mason as a portable fallback.
+local system_clangd = vim.fn.executable("/usr/bin/clangd") == 1 and "/usr/bin/clangd" or nil
+
 return {
   -- Treesitter: ensure parsers for all stack languages (single spec, merged)
   {
@@ -77,7 +80,7 @@ return {
       -- loop can start the same package twice when names are duplicated.
       local seen = {}
       opts.ensure_installed = vim.tbl_filter(function(package)
-        if seen[package] then
+        if seen[package] or (package == "clangd" and system_clangd) then
           return false
         end
         seen[package] = true
@@ -95,8 +98,9 @@ return {
         sqlls = { enabled = false },
         sqls = { enabled = false },
         clangd = {
+          mason = system_clangd == nil,
           cmd = {
-            "clangd",
+            system_clangd or "clangd",
             "--background-index",
             "--clang-tidy",
             "--header-insertion=iwyu",
