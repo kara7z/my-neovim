@@ -5,10 +5,11 @@ return {
   cmd = "ASToggle",
   opts = {
     enabled = true,
-    -- no autosave while in insert mode: only TextChanged in normal, immediate after InsertLeave
+    -- Coalesce quick insert/normal transitions before formatting and linting.
+    -- Leaving the buffer, losing focus, or quitting still flushes the save.
     trigger_events = {
-      immediate_save = { "BufLeave", "FocusLost", "InsertLeave" },
-      defer_save = { "TextChanged" },
+      immediate_save = { "BufLeave", "FocusLost", "QuitPre", "VimSuspend" },
+      defer_save = { "InsertLeave", "TextChanged" },
       cancel_deferred_save = { "InsertEnter" },
     },
     condition = function(buf)

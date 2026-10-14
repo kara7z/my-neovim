@@ -8,6 +8,7 @@ return {
   -- Core debugger client
   {
     "mfussenegger/nvim-dap",
+    lazy = true,
     dependencies = {
       "rcarriga/nvim-dap-ui",
       "theHamsta/nvim-dap-virtual-text",
@@ -69,6 +70,7 @@ return {
   -- Fancy debugger UI (panel with variables / watches / stack / breakpoints)
   {
     "rcarriga/nvim-dap-ui",
+    lazy = true,
     dependencies = { "mfussenegger/nvim-dap", "nvim-neotest/nvim-nio" },
     -- stylua: ignore
     keys = {
@@ -95,6 +97,9 @@ return {
   -- Inline variable values while stopped at a breakpoint
   {
     "theHamsta/nvim-dap-virtual-text",
+    -- Loaded by nvim-dap when debugging starts, including Java debugging.
+    -- Eager loading here pulls DAP, its UI, Mason and Treesitter into startup.
+    lazy = true,
     dependencies = { "mfussenegger/nvim-dap", "nvim-treesitter/nvim-treesitter" },
     opts = {},
   },

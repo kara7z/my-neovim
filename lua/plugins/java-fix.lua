@@ -36,9 +36,25 @@ return {
         end
       end
 
-      --- Parse major version from `java -version` output without blocking startup more than needed.
+      --- Read the JDK version, falling back to `java -version` for custom launchers.
       --- Returns 8 for 1.8.x, N for N.x, nil if unknown.
       local function java_major_of_bin(java_bin)
+        -- Installed JDKs describe their version without launching a JVM.
+        local resolved = vim.uv.fs_realpath(java_bin) or java_bin
+        local java_home = vim.fs.dirname(vim.fs.dirname(resolved))
+        local ok, lines = pcall(vim.fn.readfile, java_home .. "/release")
+        if ok then
+          for _, line in ipairs(lines) do
+            local version = line:match('^JAVA_VERSION="([^"]+)"')
+            if version then
+              local major = tonumber(version:match("^1%.(%d+)") or version:match("^(%d+)"))
+              if major then
+                return major
+              end
+            end
+          end
+        end
+        -- Custom launchers may not have a JDK release file.
         local out = vim.fn.system({ java_bin, "-version" })
         -- out goes to stderr, system() merges it; match 1.8.0_xxx or 26.0.2
         local old = out:match('"1%.(%d+)')
@@ -123,10 +139,12 @@ return {
         end
         return dirs
       end
+      -- Share one filesystem scan between project runtimes and the LSP runner.
+      local jvm_dirs = jvm_search_dirs()
       local function discover_runtimes()
         local runtimes = {}
         local seen = {}
-        for _, dir in ipairs(jvm_search_dirs()) do
+        for _, dir in ipairs(jvm_dirs) do
           if vim.fn.isdirectory(dir) == 1 and vim.fn.executable(dir .. "/bin/java") == 1 then
             local desc = describe_jvm(dir)
             if desc and not seen[desc.name] then
@@ -174,7 +192,7 @@ return {
         end
         -- Generic scan: any JVM dir with major >= 21, pick highest.
         local best, best_major = nil, 0
-        for _, dir in ipairs(jvm_search_dirs()) do
+        for _, dir in ipairs(jvm_dirs) do
           local java_bin = dir .. "/bin/java"
           if vim.fn.executable(java_bin) == 1 then
             local desc = describe_jvm(dir)

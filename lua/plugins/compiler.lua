@@ -2,8 +2,12 @@ return {
   {
     "Zeioth/compiler.nvim",
     cmd = { "CompilerOpen", "CompilerOpenOrSpringBootRun", "CompilerToggleResults", "CompilerRedo", "CompilerStop" },
-    event = "VeryLazy",
-    dependencies = { "stevearc/overseer.nvim", "nvim-telescope/telescope.nvim" },
+    -- The commands and F5/F6 mappings load the runner on first use.
+    lazy = true,
+    dependencies = {
+      "stevearc/overseer.nvim",
+      { "nvim-telescope/telescope.nvim", lazy = true, cmd = "Telescope" },
+    },
     opts = {},
     config = function(_, opts)
       require("compiler").setup(opts)
