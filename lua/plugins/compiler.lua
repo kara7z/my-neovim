@@ -1,7 +1,7 @@
 return {
   {
     "Zeioth/compiler.nvim",
-    cmd = { "CompilerOpen", "CompilerToggleResults", "CompilerRedo", "CompilerStop" },
+    cmd = { "CompilerOpen", "CompilerOpenOrSpringBootRun", "CompilerToggleResults", "CompilerRedo", "CompilerStop" },
     event = "VeryLazy",
     dependencies = { "stevearc/overseer.nvim", "nvim-telescope/telescope.nvim" },
     opts = {},
@@ -249,6 +249,118 @@ return {
           end)
         end, 100)
       end
+
+      -- F6 launches Spring projects; for all other projects it keeps its
+      -- usual behavior and opens the compiler task window.
+      local function spring_main_class(project_dir, current_file)
+        local candidates = {}
+        if current_file and current_file:match("%.java$") then
+          table.insert(candidates, current_file)
+        end
+        local source_dir = project_dir .. "/src/main/java"
+        if vim.fn.isdirectory(source_dir) == 1 then
+          vim.list_extend(candidates, vim.fs.find(function(name)
+            return name:match("%.java$") ~= nil
+          end, { path = source_dir, type = "file" }))
+        end
+
+        local seen = {}
+        for _, file in ipairs(candidates) do
+          if not seen[file] then
+            seen[file] = true
+            local source = table.concat(vim.fn.readfile(file), "\n")
+            if source:find("static%s+void%s+main%s*%(") then
+              local package = source:match("package%s+([%w%.]+)%s*;")
+              local class = vim.fn.fnamemodify(file, ":t:r")
+              return package and (package .. "." .. class) or class
+            end
+          end
+        end
+      end
+
+      local function spring_boot_run(bufname)
+        local dir = vim.fs.dirname(bufname)
+        while dir and dir ~= "" do
+          for _, build_file in ipairs({ "pom.xml", "build.gradle", "build.gradle.kts" }) do
+            local path = dir .. "/" .. build_file
+            if vim.fn.filereadable(path) == 1 then
+              local contents = table.concat(vim.fn.readfile(path), "\n"):lower()
+              local is_boot = contents:find("spring%-boot%-starter")
+                or contents:find("spring%-boot%-maven%-plugin")
+                or contents:find("org%.springframework%.boot")
+              local is_maven = build_file == "pom.xml"
+              local is_spring = contents:find("org%.springframework") or contents:find("spring%-context")
+              local has_gradle_application = contents:find("id%s*%(%s*['\"]application['\"]")
+                or contents:find("id%s+['\"]application['\"]")
+                or contents:find("apply%s+plugin:%s*['\"]application['\"]")
+                or contents:find("application%s*%{")
+              if is_boot then
+                local wrapper_name = is_maven and "mvnw" or "gradlew"
+                local wrapper = vim.fs.find(wrapper_name, { path = dir, upward = true })[1]
+                local runner = wrapper and vim.fn.executable(wrapper) == 1 and wrapper
+                  or (is_maven and "mvn" or "gradle")
+                local run_dir = wrapper and vim.fs.dirname(wrapper) or dir
+                local task
+                if is_maven then
+                  task = sh(runner) .. " -f " .. sh(path) .. " spring-boot:run"
+                else
+                  task = sh(runner) .. " -p " .. sh(dir) .. " bootRun"
+                end
+                return "cd " .. sh(run_dir) .. " && " .. task,
+                  "Spring Boot run → " .. vim.fn.fnamemodify(dir, ":t")
+              elseif is_spring and is_maven then
+                -- Plain Spring Framework has no standard run goal. Find its
+                -- application entry point and launch it on Maven's classpath.
+                local main_class = spring_main_class(dir, bufname)
+                if main_class then
+                  local wrapper = vim.fs.find("mvnw", { path = dir, upward = true })[1]
+                  local runner = wrapper and vim.fn.executable(wrapper) == 1 and wrapper or "mvn"
+                  local run_dir = wrapper and vim.fs.dirname(wrapper) or dir
+                  local task = sh(runner)
+                    .. " -f "
+                    .. sh(path)
+                    .. ' compile org.codehaus.mojo:exec-maven-plugin:3.1.0:java -Dexec.mainClass="'
+                    .. main_class
+                    .. '"'
+                  return "cd " .. sh(run_dir) .. " && " .. task,
+                    "Spring run → " .. vim.fn.fnamemodify(dir, ":t") .. " » " .. main_class
+                end
+              elseif is_spring and has_gradle_application then
+                -- Non-Boot Gradle projects need the Application plugin's run task.
+                local wrapper = vim.fs.find("gradlew", { path = dir, upward = true })[1]
+                local runner = wrapper and vim.fn.executable(wrapper) == 1 and wrapper or "gradle"
+                local run_dir = wrapper and vim.fs.dirname(wrapper) or dir
+                local task = sh(runner) .. " -p " .. sh(dir) .. " run"
+                return "cd " .. sh(run_dir) .. " && " .. task,
+                  "Spring run → " .. vim.fn.fnamemodify(dir, ":t")
+              end
+            end
+          end
+          local parent = vim.fs.dirname(dir)
+          if parent == dir then
+            break
+          end
+          dir = parent
+        end
+        return nil
+      end
+
+      vim.api.nvim_create_user_command("CompilerOpenOrSpringBootRun", function()
+        local bufname = vim.api.nvim_buf_get_name(0)
+        if bufname ~= "" and vim.bo.modified then
+          vim.cmd("silent write")
+        end
+        local cmd, name
+        if bufname ~= "" then
+          cmd, name = spring_boot_run(bufname)
+        end
+        if cmd then
+          f5_start(cmd, name)
+        else
+          vim.cmd("CompilerOpen")
+        end
+      end, { desc = "Run Spring Boot project or open compiler" })
+
       vim.keymap.set("n", "<F5>", function()
         local bufname = vim.api.nvim_buf_get_name(0)
         if bufname == "" then
@@ -407,7 +519,7 @@ return {
     end,
     keys = {
       { "<F5>", desc = "Build & run current file (single-file)" },
-      { "<F6>", "<cmd>CompilerOpen<cr>", desc = "Open compiler" },
+      { "<F6>", "<cmd>CompilerOpenOrSpringBootRun<cr>", desc = "Run Spring / Open compiler" },
       { "<S-F6>", "<cmd>CompilerStop<cr><cmd>CompilerRedo<cr>", desc = "Redo last compiler task" },
       { "<S-F7>", "<cmd>CompilerToggleResults<cr>", desc = "Toggle compiler results" },
     },

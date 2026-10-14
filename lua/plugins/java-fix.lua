@@ -250,7 +250,7 @@ return {
         return vim.fs.dirname(path)
       end
 
-      opts.jdtls = vim.tbl_deep_extend("force", opts.jdtls or {}, {
+      local jdtls_opts = vim.tbl_deep_extend("force", opts.jdtls or {}, {
         flags = {
           debounce_text_changes = 800,
           allow_incremental_sync = true,
@@ -259,6 +259,20 @@ return {
           ["language/status"] = function() end,
         },
       })
+      -- Load Spring's jdtls extensions at attach time, when the Spring plugin
+      -- has been loaded by its Java filetype trigger. Keep LazyVim's DAP/test
+      -- bundles intact while adding the Spring code actions and hints.
+      opts.jdtls = function(config)
+        config = vim.tbl_deep_extend("force", config, jdtls_opts)
+        local ok, spring_boot = pcall(require, "spring_boot")
+        if ok then
+          local bundles = spring_boot.java_extensions() or {}
+          config.init_options = config.init_options or {}
+          config.init_options.bundles = config.init_options.bundles or {}
+          vim.list_extend(config.init_options.bundles, bundles)
+        end
+        return config
+      end
 
       opts.settings = vim.tbl_deep_extend("force", opts.settings or {}, {
         java = {

@@ -66,11 +66,23 @@ return {
         "selene",
         "shfmt",
         "stylua",
+        "vscode-spring-boot-tools",
         "tailwindcss-language-server",
         "typescript-language-server",
         "vue-language-server",
         "yaml-language-server",
       })
+
+      -- LazyVim and language extras extend this list too. Mason's refresh
+      -- loop can start the same package twice when names are duplicated.
+      local seen = {}
+      opts.ensure_installed = vim.tbl_filter(function(package)
+        if seen[package] then
+          return false
+        end
+        seen[package] = true
+        return true
+      end, opts.ensure_installed)
     end,
   },
 
