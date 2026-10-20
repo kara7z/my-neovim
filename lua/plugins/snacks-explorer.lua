@@ -1,6 +1,4 @@
--- Snacks explorer: stop the brief cursor jump on open/refresh.
--- Cause: follow_file re-finds current buffer after first render, then async
--- git_status/diagnostics + watch refresh the list again, moving the cursor.
+-- Keep the explorer from following the current buffer, but show live Git changes.
 return {
   {
     "folke/snacks.nvim",
@@ -10,8 +8,8 @@ return {
           explorer = {
             focus = "list",
             follow_file = false,
-            watch = false,
-            git_status = false,
+            watch = true,
+            git_status = true,
             diagnostics = false,
           },
         },
