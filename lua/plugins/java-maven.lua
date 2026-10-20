@@ -3,7 +3,7 @@
 --   :MavenClean / :MavenCompile / :MavenTest / :MavenPackage / :MavenInstall
 --   :MavenSpringBootRun / :MavenRun / :Maven <any args...>
 -- Keymaps (<leader>jm prefix):
---   jmc clean compile | jmt test | jmb package | jmi install | jmj run | jms spring-boot:run
+--   jmc compile | jmt test | jmb package | jmi install | jmj run | jms spring-boot:run
 return {
   {
     "stevearc/overseer.nvim",
@@ -19,7 +19,7 @@ return {
     },
     -- stylua: ignore
     keys = {
-      { "<leader>jmc", "<cmd>MavenCompile<cr>", desc = "Maven: clean compile" },
+      { "<leader>jmc", "<cmd>MavenCompile<cr>", desc = "Maven: compile" },
       { "<leader>jmt", "<cmd>MavenTest<cr>", desc = "Maven: test" },
       { "<leader>jmb", "<cmd>MavenPackage<cr>", desc = "Maven: package (skip tests)" },
       { "<leader>jmi", "<cmd>MavenInstall<cr>", desc = "Maven: install (skip tests)" },
@@ -41,12 +41,14 @@ return {
         return vim.fn.getcwd()
       end
       local function run_mvn(args, name)
+        -- Compile the latest edits, including other modified project buffers.
+        vim.cmd("silent wall")
         local overseer = require("overseer")
         local root = project_root()
         local wrapper = root .. "/mvnw"
         local mvn = vim.fn.executable(wrapper) == 1 and wrapper or "mvn"
         local task = overseer.new_task({
-          cmd = mvn .. " " .. args,
+          cmd = vim.fn.shellescape(mvn) .. " " .. args,
           name = name,
           cwd = root,
           components = { "default_extended" },
@@ -81,8 +83,9 @@ return {
       end, { desc = "mvn clean" })
 
       vim.api.nvim_create_user_command("MavenCompile", function()
-        run_mvn("-q clean compile", "Maven clean compile")
-      end, { desc = "mvn -q clean compile" })
+        -- Preserve target/ so Maven can reuse unchanged compiled classes.
+        run_mvn("compile", "Maven compile")
+      end, { desc = "mvn compile (incremental)" })
 
       vim.api.nvim_create_user_command("MavenTest", function()
         run_mvn("test", "Maven test")
@@ -97,8 +100,8 @@ return {
       end, { desc = "mvn -DskipTests install" })
 
       vim.api.nvim_create_user_command("MavenSpringBootRun", function()
-        run_mvn("spring-boot:run", "Maven spring-boot:run")
-      end, { desc = "mvn spring-boot:run" })
+        run_mvn("-Dmaven.test.skip=true spring-boot:run", "Maven spring-boot:run")
+      end, { desc = "mvn spring-boot:run (skip test compilation)" })
 
       vim.api.nvim_create_user_command("MavenRun", function()
         local fqcn = buf_fqcn()

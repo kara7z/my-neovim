@@ -306,7 +306,8 @@ return {
                 local run_dir = wrapper and vim.fs.dirname(wrapper) or dir
                 local task
                 if is_maven then
-                  task = sh(runner) .. " -f " .. sh(path) .. " spring-boot:run"
+                  -- Boot's run goal reaches test-compile; app launches only need main classes.
+                  task = sh(runner) .. " -f " .. sh(path) .. " -Dmaven.test.skip=true spring-boot:run"
                 else
                   task = sh(runner) .. " -p " .. sh(dir) .. " bootRun"
                 end

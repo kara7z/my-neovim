@@ -220,16 +220,61 @@ return {
 
       local runtimes = discover_runtimes()
       if #runtimes > 0 then
-        -- Option A: prefer JavaSE-1.8 as default (strict Java 8 diagnostics),
-        -- else fall back to lowest major.
-        local default_idx = 1
-        for i, r in ipairs(runtimes) do
-          if r.name == "JavaSE-1.8" then
-            default_idx = i
-            break
+        -- Prefer the project's target Java (from pom.xml) so a Java 21
+        -- project doesn't get Java 8 diagnostics by default.
+        -- Falls back to 21 -> highest >= 21 -> lowest available.
+        local function pom_java_major()
+          local pom = vim.fs.find("pom.xml", { path = vim.fn.getcwd(), upward = true })[1]
+          if not pom then
+            return nil
+          end
+          local ok, lines = pcall(vim.fn.readfile, pom)
+          if not ok then
+            return nil
+          end
+          local text = table.concat(lines, "\n")
+          local raw = text:match("<maven%.compiler%.release>%s*([^<%s]+)%s*<")
+            or text:match("<maven%.compiler%.target>%s*([^<%s]+)%s*<")
+            or text:match("<%s*java%.version%s*>%s*([^<%s]+)%s*<")
+            or text:match("<%s*release%s*>%s*([^<%s]+)%s*<")
+          if not raw then
+            return nil
+          end
+          if raw:match("^1%.8") then
+            return 8
+          end
+          return tonumber(raw:match("^(%d+)"))
+        end
+        local want = pom_java_major()
+        local default_idx = nil
+        if want then
+          local want_name = want == 8 and "JavaSE-1.8" or "JavaSE-" .. want
+          for i, r in ipairs(runtimes) do
+            if r.name == want_name then
+              default_idx = i
+              break
+            end
           end
         end
-        runtimes[default_idx].default = true
+        if not default_idx then
+          for i, r in ipairs(runtimes) do
+            if r.name == "JavaSE-21" then
+              default_idx = i
+              break
+            end
+          end
+        end
+        if not default_idx then
+          -- highest >= 21 (runtimes sorted ascending, so scan from end)
+          for i = #runtimes, 1, -1 do
+            local major = tonumber(runtimes[i].name:match("JavaSE%-(%d+)"))
+            if major and major >= 21 then
+              default_idx = i
+              break
+            end
+          end
+        end
+        runtimes[default_idx or 1].default = true
       else
         -- fallback: use whatever `java` resolves to
         local fallback = vim.fn.exepath("java"):gsub("/bin/java$", "")
