@@ -8,7 +8,7 @@ return {
       },
     },
   },
-  -- 2. jdtls: throttle didChange + validate only on save.
+  -- 2. jdtls: throttle didChange while keeping project builds/dependencies current.
   -- Runner (starts jdtls) is discovered dynamically: must be >= 21.
   -- Project runtimes are discovered dynamically from /usr/lib/jvm/*.
   -- Option A default: prefer JavaSE-1.8 if present, else lowest major.
@@ -339,7 +339,7 @@ return {
 
       opts.settings = vim.tbl_deep_extend("force", opts.settings or {}, {
         java = {
-          autobuild = { enabled = false },
+          autobuild = { enabled = true },
           maxConcurrentBuilds = 1,
           saveActions = { organizeImports = false },
           completion = {
@@ -347,7 +347,7 @@ return {
             lazyResolveTextEdit = { enabled = false },
           },
           configuration = {
-            updateBuildConfiguration = "interactive",
+            updateBuildConfiguration = "automatic",
             runtimes = runtimes,
           },
           edit = {
