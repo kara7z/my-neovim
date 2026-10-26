@@ -166,6 +166,11 @@ return {
       --- Find a java >= 21 to run jdtls itself. Fully dynamic (portable):
       --- JAVA_HOME -> preferred LTS list -> glob scan -> PATH fallback.
       local function find_runner_java()
+        -- Keep JDTLS's Java 25 runtime separate from project JAVA_HOME on NixOS.
+        local jdtls_java = vim.fn.stdpath("data") .. "/jdtls-jdk/bin/java"
+        if vim.fn.executable(jdtls_java) == 1 then
+          return jdtls_java
+        end
         local java_home = vim.env.JAVA_HOME
         if java_home and java_home ~= "" and vim.fn.executable(java_home .. "/bin/java") == 1 then
           local major = java_major_of_bin(java_home .. "/bin/java")
