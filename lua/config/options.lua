@@ -39,6 +39,10 @@ vim.opt.undofile = true
 vim.opt.conceallevel = 0
 vim.opt.spelllang = { "en" }
 
+-- Keep the cursor steady, including terminals used to run Spring Boot.
+-- Neovim's terminal-mode default otherwise overrides Kitty's no-blink setting.
+vim.opt.guicursor = "n-v-c-sm:block,i-ci-ve:ver25,r-cr-o:hor20,t:block-TermCursor,a:blinkon0"
+
 -- Undo/redo history for 200+ steps (default 10000, keep high for 200 redo via 200Ctrl-Shift-z)
 vim.opt.undolevels = 10000
 vim.opt.undoreload = 10000
