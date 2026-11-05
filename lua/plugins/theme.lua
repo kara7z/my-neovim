@@ -45,6 +45,11 @@ return {
         SnacksPickerTree = { fg = "#575653", bg = "NONE" },
         SnacksPickerMatch = { fg = "#DA702C", bold = true },
         SnacksPickerCursorLine = { bg = "#282726" },
+        -- High-contrast targets for Flash's f/F/t/T character searches.
+        FlashBackdrop = { fg = "#6F6E69" },
+        FlashMatch = { fg = "#CECDC3", bg = "#403E3C", bold = true },
+        FlashCurrent = { fg = "#100F0F", bg = "#DFB431", bold = true },
+        FlashLabel = { fg = "#100F0F", bg = "#87D3C3", bold = true },
         TabLine = { fg = "#878580", bg = "NONE" },
         TabLineFill = { bg = "NONE" },
         TabLineSel = { fg = "#D0A215", bg = "NONE", bold = true },

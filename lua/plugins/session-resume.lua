@@ -38,9 +38,7 @@ return {
         if #vim.api.nvim_list_uis() == 0 then
           return
         end
-        if vim.fn.argc() == 0 and vim.v.this_session == "" and not vim.g.session_resume_stdin then
-          persistence.load({ last = vim.g.resume_last_session == 1 })
-        end
+        -- Never resume automatically; plain `nvim` opens LazyVim's dashboard.
         ready = true
         save()
         local timer = vim.uv.new_timer()

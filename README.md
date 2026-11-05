@@ -64,6 +64,8 @@ Type `enum`, `interface`, `record`, `abstract`, `annotation`, or `method` and se
 
 `JavaProject` creates a simple or Maven project; `JavaClass User models` creates an importable `models.User` class in a simple project. `JavaClass Status enums` creates an enum. `F5` builds/runs the current file; `F6` runs Spring projects or opens the compiler menu.
 
+Java startup stays lightweight: standalone files do not import nested Maven/Gradle projects or search their parent directory for dependency jars. Spring tooling only starts for a build workspace that actually uses Spring, and its classpath handshake runs asynchronously instead of blocking input while JDTLS imports the project. Debug entry points are discovered on demand with `:JdtUpdateDebugConfig`, rather than on every LSP attachment.
+
 ## Installation
 
 1. **Backup old config** (if any):

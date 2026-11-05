@@ -119,6 +119,31 @@ local ok, err = xpcall(function()
   )
 
   -- Capture task definitions without running a compiler or stopping real jobs.
+  check(java_opts.dap_main == false, "debug main-class discovery does not run during LSP attachment")
+  local standalone = java_opts.jdtls({ root_dir = temp, settings = {} })
+  check(
+    standalone.settings.java.import.maven.enabled == false and standalone.settings.java.import.gradle.enabled == false,
+    "standalone files do not import nested build projects"
+  )
+  check(
+    vim.tbl_isempty(standalone.settings.java.project.referencedLibraries),
+    "standalone files do not search recursively for dependency jars"
+  )
+
+  local java = require("config.java")
+  local plugins, extensions = temp .. "/plugins", temp .. "/extensions"
+  write(plugins .. "/org.objectweb.asm_9.10.1.jar", {})
+  write(extensions .. "/org.objectweb.asm_9.9.jar", {})
+  write(extensions .. "/jacocoagent.jar", {})
+  write(extensions .. "/com.microsoft.java.test.runner-jar-with-dependencies.jar", {})
+  write(extensions .. "/com.microsoft.java.test.plugin.jar", {})
+  assert(vim.uv.fs_symlink(extensions .. "/com.microsoft.java.test.plugin.jar", extensions .. "/alias.jar"))
+  local filtered = java.filter_bundles(vim.fn.glob(extensions .. "/*.jar", false, true), plugins)
+  check(
+    #filtered == 1 and vim.uv.fs_realpath(filtered[1]) == extensions .. "/com.microsoft.java.test.plugin.jar",
+    "extension bundles exclude launchers, built-in dependencies and symlink duplicates"
+  )
+
   local overseer = require("overseer")
   local tasks = {}
   overseer.new_task = function(definition)
@@ -177,9 +202,14 @@ local ok, err = xpcall(function()
     "build success message cannot expand shell characters"
   )
 
-  -- Bound the Spring detector even when a tree contains no build files.
+  -- Nested unrelated projects must not enable Spring for a standalone file.
   local filter = dofile(config_dir .. "/lua/plugins/spring-boot.lua")[1].opts.project_filter
   check(filter(nil) == false, "Spring detector handles missing roots")
+  write(temp .. "/unrelated/pom.xml", { "<project><groupId>org.springframework.boot</groupId></project>" })
+  check(filter(temp) == false, "Spring ignores unrelated descendant projects")
+  check(filter(temp .. "/unrelated") == true, "actual Spring projects still enable Spring tooling")
+  local budget_root = temp .. "/scan-budget"
+  write(budget_root .. "/pom.xml", { "<project/>" })
   local scan, next_entry, readfile = vim.uv.fs_scandir, vim.uv.fs_scandir_next, vim.fn.readfile
   local scans = 0
   vim.uv.fs_scandir = function()
@@ -192,12 +222,95 @@ local ok, err = xpcall(function()
       return "nested", "directory"
     end
   end
-  vim.fn.readfile = function()
+  vim.fn.readfile = function(path)
+    if path == budget_root .. "/pom.xml" then
+      return { "<project/>" }
+    end
     error("no build file")
   end
-  local filter_ok, result = pcall(filter, temp)
+  local filter_ok, result = pcall(filter, budget_root)
   vim.uv.fs_scandir, vim.uv.fs_scandir_next, vim.fn.readfile = scan, next_entry, readfile
-  check(filter_ok and result == false and scans <= 200, "Spring detector has a finite directory budget")
+  check(filter_ok and result == false and scans == 200, "Spring detector has a finite directory budget")
+
+  -- A slow JDTLS must not turn Spring's server requests into vim.wait calls.
+  local spring_config = require("config.spring")
+  local spring_file = temp .. "/unrelated/src/RootCheck.java"
+  write(spring_file, { "class RootCheck {}" })
+  edit(spring_file, "java")
+  local spring_root
+  spring_config.root_dir(vim.api.nvim_get_current_buf(), function(root)
+    spring_root = root
+  end)
+  check(spring_root == temp .. "/unrelated", "Spring finds Maven roots independently of cwd and wrapper scripts")
+  edit(single, "java")
+  spring_root = nil
+  spring_config.root_dir(vim.api.nvim_get_current_buf(), function(root)
+    spring_root = root
+  end)
+  check(spring_root == nil, "Spring does not fall back to the current directory for standalone files")
+  local handlers = require("config.spring").handlers
+  local get_clients, get_client, wait = vim.lsp.get_clients, vim.lsp.get_client_by_id, vim.wait
+  local forwarded, callbacks = {}, {}
+  local spring = {
+    id = -1,
+    config = { root_dir = "/spring/project" },
+    is_stopped = function()
+      return false
+    end,
+    request = function(_, _, params)
+      callbacks[#callbacks + 1] = params
+    end,
+  }
+  vim.lsp.get_client_by_id = function()
+    return spring
+  end
+  vim.lsp.get_clients = function()
+    return {
+      {
+        config = { root_dir = "/other/project" },
+        request = function()
+          error("wrong Java workspace")
+        end,
+      },
+      {
+        config = { root_dir = "/spring/project" },
+        request = function(_, _, params)
+          forwarded[#forwarded + 1] = params
+        end,
+      },
+    }
+  end
+  vim.wait = function()
+    error("blocking wait in Spring LSP handler")
+  end
+  local add_ok, add_result = pcall(
+    handlers["sts/addClasspathListener"],
+    nil,
+    { callbackCommandId = "test.classpath" },
+    { client_id = -1 }
+  )
+  local callback_ok = add_ok and pcall(vim.lsp.commands["test.classpath"], { "classpath" })
+  local remove_ok, remove_result = pcall(
+    handlers["sts/removeClasspathListener"],
+    nil,
+    { callbackCommandId = "test.classpath" },
+    { client_id = -1 }
+  )
+  vim.lsp.get_clients, vim.lsp.get_client_by_id, vim.wait = get_clients, get_client, wait
+  check(
+    add_ok and add_result == vim.NIL and remove_ok and remove_result == vim.NIL,
+    "Spring startup handlers return immediately even if JDTLS never replies"
+  )
+  check(
+    #forwarded == 2
+      and forwarded[1].command == "sts.java.addClasspathListener"
+      and forwarded[2].command == "sts.java.removeClasspathListener",
+    "Spring requests go to the matching Java workspace"
+  )
+  check(
+    callback_ok and #callbacks == 1 and vim.lsp.commands["test.classpath"] == nil,
+    "asynchronous Spring classpath callbacks are forwarded and cleaned up"
+  )
 
   local messages = vim.api.nvim_exec2("messages", { output = true }).output
   check(

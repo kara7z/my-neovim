@@ -14,7 +14,9 @@ return {
             win = { position = "right" },
           })
         end,
-        mode = { "n", "t" },
+        -- A Space-leader mapping in terminal mode delays every typed space
+        -- until timeoutlen expires. Keep shell input free of leader mappings.
+        mode = "n",
         desc = "Toggle OpenCode terminal",
       },
     },

@@ -52,8 +52,12 @@ run "Keymap regressions" timeout 60 nvim --headless --noplugin -u NONE \
   -c 'lua dofile(vim.env.NVIM_CONFIG_DIR .. "/tests/test_headless.lua")'
 run "Full configuration regressions" timeout 90 nvim --headless -u "$CFG/init.lua" \
   -c 'lua dofile(vim.env.NVIM_CONFIG_DIR .. "/tests/test_config.lua")'
+run "Terminal input regressions" timeout 30 nvim --headless -u "$CFG/init.lua" \
+  -l "$CFG/tests/test_terminal_keymaps.lua"
 if [[ "${NVIM_TEST_JAVA_LSP:-0}" == 1 ]]; then
   run "Java LSP integration" timeout 120 nvim --headless -u "$CFG/init.lua" \
+    -c 'lua dofile(vim.env.NVIM_CONFIG_DIR .. "/tests/test_java_lsp.lua")'
+  run "Standalone Java LSP integration" env NVIM_TEST_JAVA_SINGLE=1 timeout 120 nvim --headless -u "$CFG/init.lua" \
     -c 'lua dofile(vim.env.NVIM_CONFIG_DIR .. "/tests/test_java_lsp.lua")'
 fi
 

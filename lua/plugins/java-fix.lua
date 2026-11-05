@@ -314,6 +314,9 @@ return {
         table.insert(cmd, string.format("--jvm-arg=-javaagent:%s", lombok))
       end
       opts.cmd = cmd
+      -- Discover debug entry points only when explicitly requested with
+      -- :JdtUpdateDebugConfig, not during every language-server attachment.
+      opts.dap_main = false
 
       -- Two unrelated projects called "demo" must not share Eclipse metadata.
       opts.project_name = function(root)
@@ -321,7 +324,10 @@ return {
           return nil
         end
         local path = vim.uv.fs_realpath(root) or vim.fs.normalize(root)
-        return vim.fs.basename(path) .. "-" .. vim.fn.sha256(path):sub(1, 12)
+        -- Keep standalone files away from old metadata that may have imported
+        -- unrelated projects from the whole parent directory. Do not wipe it.
+        local kind = require("config.java").is_project(path) and "-" or "-single-"
+        return vim.fs.basename(path) .. kind .. vim.fn.sha256(path):sub(1, 12)
       end
 
       -- LazyVim's default root_dir reads vim.lsp.config.jdtls.root_markers, which
@@ -370,12 +376,31 @@ return {
       -- bundles intact while adding the Spring code actions and hints.
       opts.jdtls = function(config)
         config = vim.tbl_deep_extend("force", config, jdtls_opts)
-        local ok, spring_boot = pcall(require, "spring_boot")
+        local java = require("config.java")
+        local spring = java.is_spring_project(config.root_dir)
+        local ok, spring_boot = false, nil
+        if spring then
+          ok, spring_boot = pcall(require, "spring_boot")
+        end
+        config.init_options = config.init_options or {}
+        config.init_options.bundles = config.init_options.bundles or {}
         if ok then
           local bundles = spring_boot.java_extensions() or {}
-          config.init_options = config.init_options or {}
-          config.init_options.bundles = config.init_options.bundles or {}
           vim.list_extend(config.init_options.bundles, bundles)
+        end
+        local mason = vim.env.MASON or (vim.fn.stdpath("data") .. "/mason")
+        local launcher = vim.uv.fs_realpath(jdtls_bin)
+        local install = launcher and vim.fs.dirname(launcher) or (mason .. "/packages/jdtls")
+        config.init_options.bundles = java.filter_bundles(config.init_options.bundles, install .. "/plugins")
+        if not java.is_project(config.root_dir) then
+          -- Do not import every Maven/Gradle project or recursively search for
+          -- jars below a standalone file's directory (especially $HOME).
+          config.settings = vim.tbl_deep_extend("force", config.settings or {}, {
+            java = {
+              import = { maven = { enabled = false }, gradle = { enabled = false }, exclusions = { "**" } },
+              project = { referencedLibraries = {} },
+            },
+          })
         end
         return config
       end
