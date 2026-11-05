@@ -12,7 +12,13 @@ return {
         -- Check the root before walking submodules, and scan once for both
         -- Boot and Framework dependencies. The plugin caches this per root.
         local skip = { target = true, build = true, node_modules = true, vendor = true, bin = true }
+        if type(root_dir) ~= "string" or root_dir == "" then
+          return false
+        end
         local dirs, index, files_read = { root_dir }, 1, 0
+        -- Bound directories as well as build files: an ordinary Java file
+        -- opened from $HOME must not synchronously traverse the whole home.
+        local max_dirs = 200
         while index <= #dirs and files_read < 50 do
           local dir = dirs[index]
           index = index + 1
@@ -21,7 +27,8 @@ return {
             if ok then
               files_read = files_read + 1
               local contents = table.concat(lines, "\n"):lower()
-              if contents:find("org%.springframework")
+              if
+                contents:find("org%.springframework")
                 or contents:find("spring%-boot%-starter")
                 or contents:find("spring%-boot%-maven%-plugin")
                 or contents:find("spring%-webmvc")
@@ -41,7 +48,7 @@ return {
             if not name then
               break
             end
-            if kind == "directory" and name:sub(1, 1) ~= "." and not skip[name] then
+            if kind == "directory" and name:sub(1, 1) ~= "." and not skip[name] and #dirs < max_dirs then
               dirs[#dirs + 1] = dir .. "/" .. name
             end
           end

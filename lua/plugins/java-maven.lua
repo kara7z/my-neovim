@@ -68,7 +68,7 @@ return {
         local class = vim.fn.fnamemodify(name, ":t:r")
         local pkg = nil
         for _, line in ipairs(vim.api.nvim_buf_get_lines(0, 0, 60, false)) do
-          pkg = line:match("^%s*package%s+([%w%.]+)%s*;")
+          pkg = line:match("^%s*package%s+([%w_$.]+)%s*;")
           if pkg then
             break
           end
@@ -108,7 +108,13 @@ return {
         if fqcn == "" or fqcn:match("%.$") then
           fqcn = vim.fn.input("Main class: ", fqcn)
         end
-        run_mvn("-q -DskipTests " .. exec_java .. " -Dexec.mainClass=" .. fqcn, "Maven run: " .. fqcn)
+        if vim.trim(fqcn) == "" then
+          return
+        end
+        run_mvn(
+          "-q -DskipTests " .. exec_java .. " " .. vim.fn.shellescape("-Dexec.mainClass=" .. fqcn),
+          "Maven run: " .. fqcn
+        )
       end, { desc = "mvn compile + exec:java <main class>" })
 
       vim.api.nvim_create_user_command("Maven", function(opts)

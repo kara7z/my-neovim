@@ -70,7 +70,8 @@ vim.bo.readonly = false
 
 -- Undo grouping check: move then undojoin then == is CORRECT per :h undojoin
 -- ("join further changes with previous"): indent joins the move block.
-local f = io.open(vim.fn.expand("~/.config/nvim/lua/config/keymaps.lua"), "r")
+local config_dir = vim.env.NVIM_CONFIG_DIR or vim.fn.stdpath("config")
+local f = io.open(config_dir .. "/lua/config/keymaps.lua", "r")
 local src = f and f:read("*a") or ""
 if f then
   f:close()
@@ -78,8 +79,10 @@ end
 local move_pos = src:find("execute 'move")
 local undo_pos = src:find('pcall%(vim.cmd, "undojoin"%)')
 local indent_pos = src:find("normal! ==")
-ok(move_pos ~= nil and undo_pos ~= nil and move_pos < undo_pos and undo_pos < (indent_pos or 1e9),
-  "undojoin groups indent with move (correct order)")
+ok(
+  move_pos ~= nil and undo_pos ~= nil and move_pos < undo_pos and undo_pos < (indent_pos or 1e9),
+  "undojoin groups indent with move (correct order)"
+)
 
 if failures > 0 then
   print(string.format("%d FAILURES", failures))

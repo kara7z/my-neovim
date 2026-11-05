@@ -4,6 +4,7 @@
 
 local failures = 0
 local passes = 0
+local config_dir = os.getenv("NVIM_CONFIG_DIR") or os.getenv("HOME") .. "/.config/nvim"
 
 local function ok(cond, name, extra)
   if cond then
@@ -50,9 +51,7 @@ end
 
 -- replicated describe_jvm dirname parsing from java-fix.lua
 local function describe_ver(base)
-  local ver = base:match("^java%-(%d+%.?%d*)")
-    or base:match("^jdk%-(%d+%.?%d*)")
-    or base:match("^(%d+%.?%d*)")
+  local ver = base:match("^java%-(%d+%.?%d*)") or base:match("^jdk%-(%d+%.?%d*)") or base:match("^(%d+%.?%d*)")
   if ver and ver:find("^1%.8") then
     ver = "8"
   end
@@ -83,34 +82,36 @@ ok(describe_ver("java-26-openjdk") == "26", "java-26 dirname")
 ok(describe_ver("java-21-openjdk") == "21", "java-21 dirname")
 
 print("== java-maven mvnw path (fixed) ==")
-local maven_lua = io.open(os.getenv("HOME") .. "/.config/nvim/lua/plugins/java-maven.lua", "r")
+local maven_lua = io.open(config_dir .. "/lua/plugins/java-maven.lua", "r")
 if maven_lua then
   local src = maven_lua:read("*a")
   maven_lua:close()
-  ok(src:find('%.mvnw') == nil, "no hidden .mvnw check remains")
-  ok(src:find('/mvnw') ~= nil, "checks root/mvnw wrapper")
-  ok(src:find('project_root') ~= nil, "uses project_root not cwd")
+  ok(src:find("%.mvnw") == nil, "no hidden .mvnw check remains")
+  ok(src:find("/mvnw") ~= nil, "checks root/mvnw wrapper")
+  ok(src:find("project_root") ~= nil, "uses project_root not cwd")
   ok(src:find('vim%.fs%.find%("pom%.xml", { path =') ~= nil, "pom search anchored at buffer path")
 else
   ok(false, "can open java-maven.lua")
 end
 
 print("== compiler lazy cmd (fixed) ==")
-local comp = io.open(os.getenv("HOME") .. "/.config/nvim/lua/plugins/compiler.lua", "r")
+local comp = io.open(config_dir .. "/lua/plugins/compiler.lua", "r")
 if comp then
   local src = comp:read("*a")
   comp:close()
   ok(src:find("CompilerStop") ~= nil, "CompilerStop referenced")
-  ok(src:find('cmd = { "CompilerOpen", "CompilerToggleResults", "CompilerRedo", "CompilerStop"') ~= nil,
-    "CompilerStop present in cmd lazy lists (fixed)")
+  ok(
+    src:find('cmd = { "CompilerOpen", "CompilerToggleResults", "CompilerRedo", "CompilerStop"') ~= nil,
+    "CompilerStop present in cmd lazy lists (fixed)"
+  )
   ok(src:find('vim%.fs%.find%("pom%.xml", { path =') ~= nil, "pom search anchored at file dir (fixed)")
-  ok(src:find('project_root_for') ~= nil, "uses project_root_for not getcwd (fixed)")
+  ok(src:find("project_root_for") ~= nil, "uses project_root_for not getcwd (fixed)")
 else
   ok(false, "can open compiler.lua")
 end
 
 print("== java-fix portable (fixed) ==")
-local jf = io.open(os.getenv("HOME") .. "/.config/nvim/lua/plugins/java-fix.lua", "r")
+local jf = io.open(config_dir .. "/lua/plugins/java-fix.lua", "r")
 if jf then
   local src = jf:read("*a")
   jf:close()
@@ -123,13 +124,13 @@ else
 end
 
 print("== stack conform/plenary (fixed) ==")
-local st = io.open(os.getenv("HOME") .. "/.config/nvim/lua/plugins/stack.lua", "r")
+local st = io.open(config_dir .. "/lua/plugins/stack.lua", "r")
 if st then
   local src = st:read("*a")
   st:close()
   ok(src:find('php = { "pint" }') ~= nil, "php uses pint only (fixed)")
   ok(src:find('blade = { "blade_formatter" }') ~= nil, "blade_formatter scoped to blade ft (fixed)")
-  ok(src:find('"nvim%-lua/plenary%.nvim",%s*init = function') ~= nil, "plenary uses init (fixed merge)")
+  ok(src:find('"nvim%-lua/plenary%.nvim"') == nil, "no duplicate plenary init hiding scaffolding commands")
   ok(src:find("css_variables = { enabled = false }") ~= nil, "css_variables disabled (EACCES crash fixed)")
   ok(src:find("unknownAtRules") ~= nil, "cssls flags unknown at-rules (fixed)")
 else
@@ -137,7 +138,7 @@ else
 end
 
 print("== round2 shell/python/clipboard/scaffold (fixed) ==")
-local comp2 = io.open(os.getenv("HOME") .. "/.config/nvim/lua/plugins/compiler.lua", "r")
+local comp2 = io.open(config_dir .. "/lua/plugins/compiler.lua", "r")
 if comp2 then
   local src = comp2:read("*a")
   comp2:close()
@@ -147,7 +148,7 @@ if comp2 then
 else
   ok(false, "can open compiler.lua round2")
 end
-local optf = io.open(os.getenv("HOME") .. "/.config/nvim/lua/config/options.lua", "r")
+local optf = io.open(config_dir .. "/lua/config/options.lua", "r")
 if optf then
   local src = optf:read("*a")
   optf:close()
@@ -155,7 +156,7 @@ if optf then
 else
   ok(false, "can open options.lua")
 end
-local scaf = io.open(os.getenv("HOME") .. "/.config/nvim/lua/plugins/java-scaffold.lua", "r")
+local scaf = io.open(config_dir .. "/lua/plugins/java-scaffold.lua", "r")
 if scaf then
   local src = scaf:read("*a")
   scaf:close()

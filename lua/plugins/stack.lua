@@ -216,25 +216,4 @@ return {
       },
     },
   },
-
-  -- Blade filetype detection (Laravel) + .env
-  -- NOTE: plenary is also specced in java-scaffold.lua (init defines commands).
-  -- Use init here too so both init functions run (lazy merges same-plugin specs;
-  -- mixing init + config risks the config override hiding commands).
-  {
-    "nvim-lua/plenary.nvim",
-    init = function()
-      vim.filetype.add({
-        pattern = {
-          [".*%.blade%.php"] = "blade",
-          [".*%.env.*"] = "sh",
-        },
-        filename = {
-          [".env"] = "sh",
-          [".env.example"] = "sh",
-          [".env.local"] = "sh",
-        },
-      })
-    end,
-  },
 }

@@ -32,6 +32,10 @@ return {
         if git then
           return vim.fs.dirname(git)
         end
+        local src = vim.fs.find("src", { path = start, upward = true, type = "directory" })[1]
+        if src then
+          return vim.fs.dirname(src)
+        end
         if bufname ~= "" then
           return vim.fs.dirname(bufname)
         end
@@ -91,9 +95,8 @@ return {
                 .. sh(output)
                 .. " "
                 .. arguments
-                .. ' && echo "Build OK: '
-                .. output
-                .. '"'
+                .. " && printf '%s\\n' "
+                .. sh("Build OK: " .. output)
             end
             local task = overseer.new_task({
               cmd = cmd,
@@ -173,9 +176,8 @@ return {
                 .. sh(output)
                 .. " "
                 .. c_args
-                .. ' && echo "Build OK: '
-                .. output
-                .. '"'
+                .. " && printf '%s\\n' "
+                .. sh("Build OK: " .. output)
             end
             local task = overseer.new_task({
               cmd = cmd,
@@ -219,7 +221,7 @@ return {
       local function java_fqcn(bufname)
         local pkg = nil
         for _, line in ipairs(vim.api.nvim_buf_get_lines(0, 0, 40, false)) do
-          pkg = line:match("^%s*package%s+([%w%.]+)%s*;")
+          pkg = line:match("^%s*package%s+([%w_$.]+)%s*;")
           if pkg then
             break
           end
@@ -229,23 +231,22 @@ return {
       end
 
       -- F5: universal single-file build & run for every language (no picker)
+      local last_run
       local function f5_start(cmd, name)
         local overseer = require("overseer")
-        -- Dynamic: stop any previous run so output always belongs to current buffer,
-        -- never a stale task from another project (e.g. albaraka vs Al Baraka).
-        for _, t in ipairs(overseer.list_tasks({})) do
-          local s = t.status
-          if s == "RUNNING" or s == "PENDING" then
-            pcall(function()
-              t:stop()
-            end)
-          end
+        -- Replace only our previous run, not unrelated Maven/test/watch tasks.
+        if last_run and (last_run.status == "RUNNING" or last_run.status == "PENDING") then
+          pcall(function()
+            last_run:stop()
+          end)
         end
         local task = overseer.new_task({
           cmd = cmd,
           name = name,
+          cwd = project_root_for(vim.api.nvim_buf_get_name(0)),
           components = silent_components,
         })
+        last_run = task
         task:start()
         vim.defer_fn(function()
           pcall(function()
@@ -263,9 +264,12 @@ return {
         end
         local source_dir = project_dir .. "/src/main/java"
         if vim.fn.isdirectory(source_dir) == 1 then
-          vim.list_extend(candidates, vim.fs.find(function(name)
-            return name:match("%.java$") ~= nil
-          end, { path = source_dir, type = "file" }))
+          vim.list_extend(
+            candidates,
+            vim.fs.find(function(name)
+              return name:match("%.java$") ~= nil
+            end, { path = source_dir, type = "file", limit = math.huge })
+          )
         end
 
         local seen = {}
@@ -311,8 +315,7 @@ return {
                 else
                   task = sh(runner) .. " -p " .. sh(dir) .. " bootRun"
                 end
-                return "cd " .. sh(run_dir) .. " && " .. task,
-                  "Spring Boot run → " .. vim.fn.fnamemodify(dir, ":t")
+                return "cd " .. sh(run_dir) .. " && " .. task, "Spring Boot run → " .. vim.fn.fnamemodify(dir, ":t")
               elseif is_spring and is_maven then
                 -- Plain Spring Framework has no standard run goal. Find its
                 -- application entry point and launch it on Maven's classpath.
@@ -324,9 +327,8 @@ return {
                   local task = sh(runner)
                     .. " -f "
                     .. sh(path)
-                    .. ' compile org.codehaus.mojo:exec-maven-plugin:3.1.0:java -Dexec.mainClass="'
-                    .. main_class
-                    .. '"'
+                    .. " compile org.codehaus.mojo:exec-maven-plugin:3.1.0:java "
+                    .. sh("-Dexec.mainClass=" .. main_class)
                   return "cd " .. sh(run_dir) .. " && " .. task,
                     "Spring run → " .. vim.fn.fnamemodify(dir, ":t") .. " » " .. main_class
                 end
@@ -336,8 +338,7 @@ return {
                 local runner = wrapper and vim.fn.executable(wrapper) == 1 and wrapper or "gradle"
                 local run_dir = wrapper and vim.fs.dirname(wrapper) or dir
                 local task = sh(runner) .. " -p " .. sh(dir) .. " run"
-                return "cd " .. sh(run_dir) .. " && " .. task,
-                  "Spring run → " .. vim.fn.fnamemodify(dir, ":t")
+                return "cd " .. sh(run_dir) .. " && " .. task, "Spring run → " .. vim.fn.fnamemodify(dir, ":t")
               end
             end
           end
@@ -425,11 +426,10 @@ return {
               .. sh(root)
               .. " && "
               .. sh(mvn)
-              .. ' -q -DskipTests compile org.codehaus.mojo:exec-maven-plugin:3.1.0:java -Dexec.mainClass="'
-              .. fqcn
-              .. '" && echo "" && echo "--- Done ---"'
+              .. " -q -DskipTests compile org.codehaus.mojo:exec-maven-plugin:3.1.0:java "
+              .. sh("-Dexec.mainClass=" .. fqcn)
+              .. ' && echo "" && echo "--- Done ---"'
             f5_start(cmd, '- Build & run (maven) → "' .. vim.fn.fnamemodify(root, ":t") .. " » " .. fqcn .. '"')
-
           elseif has_src then
             -- ── Simple multi-file project (src/models, src/services, …) ────
             local out = cwd .. "/bin"
@@ -442,11 +442,10 @@ return {
               .. sh(out)
               .. ' -Xlint:all && echo "--- Program output ---" && java -cp '
               .. sh(out)
-              .. ' "'
-              .. fqcn
-              .. '" && echo "" && echo "--- Done ---"'
+              .. " "
+              .. sh(fqcn)
+              .. ' && echo "" && echo "--- Done ---"'
             f5_start(cmd, '- Build & run (src/) → "' .. vim.fn.fnamemodify(cwd, ":t") .. " » " .. fqcn .. '"')
-
           else
             -- ── Single file ────────────────────────────────────────────────
             local cmd = "mkdir -p "
@@ -457,15 +456,19 @@ return {
               .. sh(bufname)
               .. ' && echo "--- Program output ---" && java -cp '
               .. sh(output_dir)
-              .. ' "'
-              .. stem
-              .. '" && echo "" && echo "--- Done ---"'
+              .. " "
+              .. sh(java_fqcn(bufname))
+              .. ' && echo "" && echo "--- Done ---"'
             f5_start(cmd, '- Build & run (java) → "' .. bufname .. '"')
           end
         elseif ft == "python" then
           -- prefer python3 (python may be py2 on some systems)
           local py = vim.fn.executable("python3") == 1 and "python3" or "python"
-          local cmd = 'echo "--- Program output ---" && ' .. py .. " " .. sh(bufname) .. ' && echo "" && echo "--- Done ---"'
+          local cmd = 'echo "--- Program output ---" && '
+            .. py
+            .. " "
+            .. sh(bufname)
+            .. ' && echo "" && echo "--- Done ---"'
           f5_start(cmd, '- Run (python) → "' .. bufname .. '"')
         elseif ft == "lua" then
           local cmd = 'echo "--- Program output ---" && lua ' .. sh(bufname) .. ' && echo "" && echo "--- Done ---"'

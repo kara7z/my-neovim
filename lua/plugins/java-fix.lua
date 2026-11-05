@@ -5,17 +5,34 @@ return {
     opts = {
       diagnostics = {
         update_in_insert = false,
+        underline = true,
+        severity_sort = true,
+        virtual_text = {
+          spacing = 2,
+          source = "if_many",
+          prefix = "●",
+          severity = { min = vim.diagnostic.severity.WARN },
+        },
+        signs = {
+          text = {
+            [vim.diagnostic.severity.ERROR] = " ",
+            [vim.diagnostic.severity.WARN] = " ",
+            [vim.diagnostic.severity.INFO] = " ",
+            [vim.diagnostic.severity.HINT] = " ",
+          },
+        },
+        float = { border = "rounded", source = true },
       },
     },
   },
   -- 2. jdtls: throttle didChange while keeping project builds/dependencies current.
-  -- Runner (starts jdtls) is discovered dynamically: must be >= 21.
+  -- Runner (starts current jdtls) is discovered dynamically: must be >= 25.
   -- Project runtimes are discovered dynamically from /usr/lib/jvm/*.
-  -- Option A default: prefer JavaSE-1.8 if present, else lowest major.
+  -- Prefer the project's Maven target, then Java 21 or an available runtime.
   {
     "mfussenegger/nvim-jdtls",
     opts = function(_, opts)
-      -- jdtls runner needs Java 21+ even if your project targets Java 8
+      -- Current jdtls bundles need Java 25+, independently of the project's JDK.
       local jdtls_bin = vim.fn.exepath("jdtls")
       if jdtls_bin == "" then
         jdtls_bin = vim.fn.expand("$HOME/.local/share/nvim/mason/bin/jdtls")
@@ -79,9 +96,7 @@ return {
         if base:match("^default") then
           return nil
         end
-        local ver = base:match("^java%-(%d+%.?%d*)")
-          or base:match("^jdk%-(%d+%.?%d*)")
-          or base:match("^(%d+%.?%d*)")
+        local ver = base:match("^java%-(%d+%.?%d*)") or base:match("^jdk%-(%d+%.?%d*)") or base:match("^(%d+%.?%d*)")
         if ver and ver:find("^1%.8") then
           ver = "8"
         end
@@ -163,45 +178,41 @@ return {
         return runtimes
       end
 
-      --- Find a java >= 21 to run jdtls itself. Fully dynamic (portable):
+      --- Find a java >= 25 to run jdtls itself. Fully dynamic (portable):
       --- JAVA_HOME -> preferred LTS list -> glob scan -> PATH fallback.
       local function find_runner_java()
-        -- Keep JDTLS's Java 25 runtime separate from project JAVA_HOME on NixOS.
+        -- Keep JDTLS's Java 25 runtime separate from project JAVA_HOME.
         local jdtls_java = vim.fn.stdpath("data") .. "/jdtls-jdk/bin/java"
-        if vim.fn.executable(jdtls_java) == 1 then
+        if vim.fn.executable(jdtls_java) == 1 and (java_major_of_bin(jdtls_java) or 0) >= 25 then
           return jdtls_java
         end
         local java_home = vim.env.JAVA_HOME
         if java_home and java_home ~= "" and vim.fn.executable(java_home .. "/bin/java") == 1 then
           local major = java_major_of_bin(java_home .. "/bin/java")
-          if major and major >= 21 then
+          if major and major >= 25 then
             return java_home .. "/bin/java"
           end
         end
-        -- Prefer LTS 21, then 25, then whatever is newest/available.
+        -- Prefer LTS 25, then whatever compatible version is available.
         -- Check both Linux and macOS/Homebrew locations without hardcoding one OS.
         local preferred = {
-          "/usr/lib/jvm/java-21-openjdk/bin/java",
           "/usr/lib/jvm/java-25-openjdk/bin/java",
           "/usr/lib/jvm/java-26-openjdk/bin/java",
-          "/usr/lib/jvm/java-24-openjdk/bin/java",
-          "/usr/lib/jvm/java-23-openjdk/bin/java",
-          "/usr/lib/jvm/java-22-openjdk/bin/java",
-          "/Library/Java/JavaVirtualMachines/openjdk-21.jdk/Contents/Home/bin/java",
-          "/opt/homebrew/opt/openjdk@21/bin/java",
+          "/Library/Java/JavaVirtualMachines/openjdk-25.jdk/Contents/Home/bin/java",
+          "/opt/homebrew/opt/openjdk@25/bin/java",
         }
         for _, p in ipairs(preferred) do
           if vim.fn.executable(p) == 1 then
             return p
           end
         end
-        -- Generic scan: any JVM dir with major >= 21, pick highest.
+        -- Generic scan: any JVM dir with major >= 25, pick highest.
         local best, best_major = nil, 0
         for _, dir in ipairs(jvm_dirs) do
           local java_bin = dir .. "/bin/java"
           if vim.fn.executable(java_bin) == 1 then
             local desc = describe_jvm(dir)
-            if desc and desc.major >= 21 and desc.major > best_major then
+            if desc and desc.major >= 25 and desc.major > best_major then
               best, best_major = java_bin, desc.major
             end
           end
@@ -212,9 +223,13 @@ return {
         local fallback = vim.fn.exepath("java")
         if fallback ~= "" then
           local major = java_major_of_bin(fallback)
-          if not major or major < 21 then
+          if not major or major < 25 then
             vim.notify(
-              string.format("jdtls needs Java 21+ to run, but resolved java is %s (major %s)", fallback, tostring(major)),
+              string.format(
+                "jdtls needs Java 25+ to run, but resolved java is %s (major %s)",
+                fallback,
+                tostring(major)
+              ),
               vim.log.levels.WARN
             )
           end
@@ -229,7 +244,9 @@ return {
         -- project doesn't get Java 8 diagnostics by default.
         -- Falls back to 21 -> highest >= 21 -> lowest available.
         local function pom_java_major()
-          local pom = vim.fs.find("pom.xml", { path = vim.fn.getcwd(), upward = true })[1]
+          local file = vim.api.nvim_buf_get_name(0)
+          local start = file ~= "" and vim.fs.dirname(file) or vim.fn.getcwd()
+          local pom = vim.fs.find("pom.xml", { path = start, upward = true })[1]
           if not pom then
             return nil
           end
@@ -282,9 +299,13 @@ return {
         runtimes[default_idx or 1].default = true
       else
         -- fallback: use whatever `java` resolves to
-        local fallback = vim.fn.exepath("java"):gsub("/bin/java$", "")
-        if fallback ~= "" then
-          runtimes = { { name = "JavaSE-1.8", path = fallback, default = true } }
+        local java = vim.fn.exepath("java")
+        local major = java ~= "" and java_major_of_bin(java) or nil
+        if major then
+          local resolved = vim.uv.fs_realpath(java) or java
+          local home = vim.fs.dirname(vim.fs.dirname(resolved))
+          local name = major == 8 and "JavaSE-1.8" or "JavaSE-" .. major
+          runtimes = { { name = name, path = home, default = true } }
         end
       end
       local runner = find_runner_java()
@@ -294,6 +315,15 @@ return {
       end
       opts.cmd = cmd
 
+      -- Two unrelated projects called "demo" must not share Eclipse metadata.
+      opts.project_name = function(root)
+        if not root then
+          return nil
+        end
+        local path = vim.uv.fs_realpath(root) or vim.fs.normalize(root)
+        return vim.fs.basename(path) .. "-" .. vim.fn.sha256(path):sub(1, 12)
+      end
+
       -- LazyVim's default root_dir reads vim.lsp.config.jdtls.root_markers, which
       -- is nil here (jdtls is set up via nvim-jdtls, not lspconfig), so attach
       -- crashed with "attempt to index field 'jdtls'". Use explicit markers and
@@ -301,9 +331,17 @@ return {
       -- LSP works in plain src/models + src/services projects (no pom.xml).
       opts.root_dir = function(path)
         local markers = {
-          ".git", "mvnw", "mvnw.cmd", "gradlew", "gradlew.bat",
-          "settings.gradle", "settings.gradle.kts",
-          "build.gradle", "build.gradle.kts", "pom.xml", "build.xml",
+          ".git",
+          "mvnw",
+          "mvnw.cmd",
+          "gradlew",
+          "gradlew.bat",
+          "settings.gradle",
+          "settings.gradle.kts",
+          "build.gradle",
+          "build.gradle.kts",
+          "pom.xml",
+          "build.xml",
         }
         local root = vim.fs.root(path, markers)
         if root then
@@ -350,6 +388,8 @@ return {
           completion = {
             enabled = true,
             lazyResolveTextEdit = { enabled = false },
+            guessMethodArguments = true,
+            postfix = { enabled = true },
           },
           configuration = {
             updateBuildConfiguration = "automatic",

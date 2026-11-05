@@ -1,51 +1,62 @@
 #!/usr/bin/env bash
-# Full test runner for nvim config.
-# Usage: bash tests/run_all.sh
-set -u
-CFG="$HOME/.config/nvim"
+# Run from any directory; every available check propagates failures.
+set -uo pipefail
+CFG="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+export NVIM_CONFIG_DIR="$CFG"
 export PATH="$HOME/.local/share/nvim/mason/bin:$PATH"
-pass=0; fail=0
-step() { echo ""; echo "===== $1 ====="; }
+cd "$CFG" || exit 1
+pass=0
+fail=0
 
-step "1/6 luac syntax (all lua files)"
-LUAC_FAIL=0
-while IFS= read -r f; do
-  if ! luac -p "$f"; then echo "SYNTAX FAIL $f"; LUAC_FAIL=1; fi
-done < <(find "$CFG/lua" -name "*.lua" | sort)
-if [ "$LUAC_FAIL" -eq 0 ]; then echo "PASS luac all files"; else echo "FAIL luac"; fail=$((fail+1)); fi
+run() {
+  echo ""
+  echo "== $1 =="
+  local name="$1"
+  shift
+  if "$@"; then
+    echo "PASS $name"
+    pass=$((pass + 1))
+  else
+    echo "FAIL $name"
+    fail=$((fail + 1))
+  fi
+}
 
-step "2/6 stylua --check"
-if command -v stylua >/dev/null 2>&1; then
-  if stylua --check "$CFG/" 2>&1 | head -n 30; then :; fi
-  # informational only: drift exists, don't gate
-  echo "(stylua drift is informational; run: stylua $CFG/ to fix)"
-else echo "SKIP stylua not found"; fi
+# Passed to run() as a callback.
+# shellcheck disable=SC2329
+syntax() {
+  local file result=0
+  while IFS= read -r -d '' file; do
+    luac -p "$file" || result=1
+  done < <(find "$CFG/lua" "$CFG/tests" -name '*.lua' -print0)
+  luac -p "$CFG/init.lua" || result=1
+  return "$result"
+}
 
-step "3/6 selene (with project config)"
-if command -v selene >/dev/null 2>&1; then
-  selene --config "$CFG/selene.toml" "$CFG/lua" 2>&1 | head -n 40
-  echo "(expect 0 errors, 0 warnings)"
-else echo "SKIP selene not found"; fi
-
-step "4/6 unit tests (pure lua)"
-if lua "$CFG/tests/test_unit.lua"; then pass=$((pass+1)); else echo "UNIT FAILED"; fail=$((fail+1)); fi
-
-step "5/6 static pattern checks"
-bash "$CFG/tests/test_static.sh" || true
-
-step "6/6 headless keymap test"
-if timeout 60 nvim --headless --noplugin -u NONE --cmd "set rtp+=$CFG" -c "luafile $CFG/tests/test_headless.lua" 2>&1 | tail -n 30; then
-  # nvim cquit propagates via timeout exit code; re-run exit-code check:
-  timeout 60 nvim --headless --noplugin -u NONE --cmd "set rtp+=$CFG" -c "luafile $CFG/tests/test_headless.lua" >/dev/null 2>&1
-  rc=$?
-  if [ $rc -eq 0 ]; then echo "PASS headless"; pass=$((pass+1)); else echo "FAIL headless rc=$rc"; fail=$((fail+1)); fi
-else
-  echo "FAIL headless runner"; fail=$((fail+1))
+run "Lua syntax" syntax
+for tool in stylua selene shellcheck; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "SKIP $tool (not installed)"
+    continue
+  fi
+  case "$tool" in
+    stylua) run "Formatting" stylua --check "$CFG" ;;
+    selene) run "Lua lint" selene --config "$CFG/selene.toml" "$CFG/lua" ;;
+    shellcheck) run "Shell lint" shellcheck tests/*.sh ;;
+  esac
+done
+run "Unit checks" lua "$CFG/tests/test_unit.lua"
+run "Static regressions" bash "$CFG/tests/test_static.sh"
+run "Keymap regressions" timeout 60 nvim --headless --noplugin -u NONE \
+  --cmd "lua vim.opt.rtp:append(vim.env.NVIM_CONFIG_DIR)" \
+  -c 'lua dofile(vim.env.NVIM_CONFIG_DIR .. "/tests/test_headless.lua")'
+run "Full configuration regressions" timeout 90 nvim --headless -u "$CFG/init.lua" \
+  -c 'lua dofile(vim.env.NVIM_CONFIG_DIR .. "/tests/test_config.lua")'
+if [[ "${NVIM_TEST_JAVA_LSP:-0}" == 1 ]]; then
+  run "Java LSP integration" timeout 120 nvim --headless -u "$CFG/init.lua" \
+    -c 'lua dofile(vim.env.NVIM_CONFIG_DIR .. "/tests/test_java_lsp.lua")'
 fi
 
-step "7/6 full-config smoke (startup)"
-if timeout 120 nvim --headless -u "$CFG/init.lua" -c "qa!" 2>&1 | tail -n 5; then echo "PASS smoke startup"; else echo "FAIL smoke"; fail=$((fail+1)); fi
-
 echo ""
-echo "RESULT: $pass gating suites passed, $fail failed"
-exit $fail
+echo "RESULT: $pass suites passed, $fail failed"
+exit "$((fail > 0))"

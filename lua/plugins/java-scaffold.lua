@@ -25,7 +25,7 @@ return {
       ---@return string|nil
       function M.buf_package()
         for _, line in ipairs(vim.api.nvim_buf_get_lines(0, 0, 60, false)) do
-          local p = line:match("^%s*package%s+([%w%.]+)%s*;")
+          local p = line:match("^%s*package%s+([%w_$.]+)%s*;")
           if p then
             return p
           end
@@ -46,6 +46,15 @@ return {
         return name:match("^[%a_$][%w_$]*$") ~= nil
       end
 
+      local function valid_package(name)
+        for part in (name .. "."):gmatch("(.-)%.") do
+          if not valid_ident(part) then
+            return false
+          end
+        end
+        return true
+      end
+
       local function write(path, content)
         local f, err = io.open(path, "w")
         if not f then
@@ -64,7 +73,8 @@ return {
 
       local function make_main(pkg, fqcn)
         if pkg and pkg ~= "" then
-          return string.format([[package %s;
+          return string.format(
+            [[package %s;
 
 public class Main {
 
@@ -72,15 +82,21 @@ public class Main {
         System.out.println("Hello from %s!");
     }
 }
-]], pkg, fqcn)
+]],
+            pkg,
+            fqcn
+          )
         end
-        return string.format([[public class Main {
+        return string.format(
+          [[public class Main {
 
     public static void main(String[] args) {
         System.out.println("Hello from %s!");
     }
 }
-]], fqcn)
+]],
+          fqcn
+        )
       end
 
       local function make_class(pkg, class, with_main)
@@ -160,17 +176,12 @@ public class Main {
           dir = name
         end
 
-        if pkg then
-          -- validate dotted package: each segment a valid Java ident
-          for part in pkg:gmatch("[^%.]+") do
-            if not valid_ident(part) then
-              vim.notify("JavaProject: invalid package segment '" .. part .. "'", vim.log.levels.ERROR)
-              return
-            end
-          end
+        if pkg and not valid_package(pkg) then
+          vim.notify("JavaProject: invalid package '" .. pkg .. "'", vim.log.levels.ERROR)
+          return
         end
 
-        if not dir:match("^[%w_.-]+$") then
+        if dir == "." or dir == ".." or not dir:match("^[%w_.-]+$") then
           vim.notify("JavaProject: invalid project name '" .. dir .. "'", vim.log.levels.ERROR)
           return
         end
@@ -190,14 +201,20 @@ public class Main {
           vim.fn.mkdir(root .. "src/main/resources", "p")
           vim.fn.mkdir(test_dir, "p")
           vim.fn.mkdir(root .. "src/test/resources", "p")
-          write(root .. ".gitignore", [[target/
+          write(
+            root .. ".gitignore",
+            [[target/
 *.class
 .idea/
 *.iml
 .vscode/
 .DS_Store
-]])
-          write(root .. "pom.xml", string.format([[<?xml version="1.0" encoding="UTF-8"?>
+]]
+          )
+          write(
+            root .. "pom.xml",
+            string.format(
+              [[<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -226,13 +243,22 @@ public class Main {
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.2.5</version>
       </plugin>
     </plugins>
   </build>
 </project>
-]], pkg, dir))
+]],
+              pkg,
+              dir
+            )
+          )
           write(java_dir .. "/Main.java", make_main(pkg, pkg .. ".Main"))
           vim.notify(string.format("Created Maven project %s", root), vim.log.levels.INFO)
         else
@@ -285,13 +311,16 @@ public class Main {
           pkg = ""
         end
 
-        if not valid_ident(class) then
+        if not valid_ident(class) or (pkg ~= "" and not valid_package(pkg)) then
           vim.notify("JavaClass: invalid class name '" .. class .. "'", vim.log.levels.ERROR)
           return
         end
 
-        if folder and not folder:match("^[%w_%-]+$") then
-          vim.notify("JavaClass: invalid folder '" .. folder .. "' (use [A-Za-z0-9_-])", vim.log.levels.ERROR)
+        if folder and not valid_ident(folder) then
+          vim.notify(
+            "JavaClass: invalid folder '" .. folder .. "' (must be a Java package identifier)",
+            vim.log.levels.ERROR
+          )
           return
         end
 
@@ -299,7 +328,8 @@ public class Main {
         local bufname = vim.api.nvim_buf_get_name(0)
         local start = bufname ~= "" and vim.fs.dirname(bufname) or vim.fn.getcwd()
         local pom = vim.fs.find("pom.xml", { path = start, upward = true })[1]
-        local base = pom and vim.fn.fnamemodify(pom, ":h") or vim.fn.getcwd()
+        local src = vim.fs.find("src", { path = start, upward = true, type = "directory" })[1]
+        local base = pom and vim.fn.fnamemodify(pom, ":h") or (src and vim.fs.dirname(src)) or vim.fn.getcwd()
         local simple = is_simple_project(base)
 
         local target_dir
@@ -325,16 +355,18 @@ public class Main {
 
         vim.fn.mkdir(target_dir, "p")
         local content
-        if has_dots(name) then
-          -- Maven mode
-          content = make_class(pkg, class, with_main)
-        elseif folder == "enums" then
-          -- Simple mode in the enums folder -> generate a real enum
-          content = make_enum(nil, class)
-        else
-          content = make_class(nil, class, with_main)
+        if simple and folder and pkg == "" then
+          pkg = folder
         end
-        write(file, content)
+        if folder == "enums" then
+          -- Simple mode in the enums folder -> generate a real enum
+          content = make_enum(pkg, class)
+        else
+          content = make_class(pkg, class, with_main)
+        end
+        if not write(file, content) then
+          return
+        end
         vim.notify(string.format("Created %s", file), vim.log.levels.INFO)
         vim.cmd.edit(file)
       end, { nargs = "+", desc = "Create a Java class" })

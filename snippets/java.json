@@ -1,0 +1,58 @@
+{
+  "Enum declaration": {
+    "prefix": "enum",
+    "body": [
+      "public enum ${1:${TM_FILENAME_BASE}} {",
+      "\t${2:VALUE};",
+      "\t$0",
+      "}"
+    ],
+    "description": "Full public enum declaration with constants and body"
+  },
+  "Record declaration": {
+    "prefix": "record",
+    "body": [
+      "public record ${1:${TM_FILENAME_BASE}}(${2:String name}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Full public record declaration (Java 16+)"
+  },
+  "Abstract class declaration": {
+    "prefix": ["abstract", "abstractclass"],
+    "body": [
+      "public abstract class ${1:${TM_FILENAME_BASE}} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Full public abstract class declaration"
+  },
+  "Annotation declaration": {
+    "prefix": "annotation",
+    "body": [
+      "public @interface ${1:${TM_FILENAME_BASE}} {",
+      "\t${2:String} ${3:value}()${4: default \"\"};",
+      "\t$0",
+      "}"
+    ],
+    "description": "Full public annotation type declaration"
+  },
+  "Method declaration": {
+    "prefix": "method",
+    "body": [
+      "${1|public,protected,private|} ${2:void} ${3:methodName}(${4}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Method with editable visibility, return type, name and parameters"
+  },
+  "Interface declaration": {
+    "prefix": ["interface", "inter"],
+    "body": [
+      "public interface ${1:${TM_FILENAME_BASE}} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Declare a public Java interface with an editable name and body"
+  }
+}

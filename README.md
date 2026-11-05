@@ -16,7 +16,7 @@ A fast and feature-rich [LazyVim](https://github.com/LazyVim/LazyVim) configurat
 
 **Languages:** `C/C++` (`clangd`, `codelldb`), `PHP` (`intelephense`, `Blade`), `TypeScript`/`JavaScript` (`vtsls`, `eslint`), `Vue`, `Angular`, `Tailwind`, `Java` (`jdtls`), `Python`, `Lua`, `Bash`, `Docker`, `JSON`, `YAML`, `Markdown`.
 
-**UI:** `tokyonight` `night` true black `#000000`, high contrast `Visual` `#33467c`, subtle `DiagnosticUnnecessary` for unused.
+**UI:** Flexoki Dark with transparent editor/pickers/tabs, gold active tabs, brighter syntax accents, and visible error/warning diagnostics. Terminal transparency and blur are controlled separately by Kitty and your compositor.
 
 **Other:** `auto-save` (300ms, not during insert), system clipboard (`wl-clipboard` on Wayland, `unnamedplus` elsewhere), `stylua`/`prettier`/`clang-format`/`pint`.
 
@@ -56,6 +56,13 @@ npm install -g tree-sitter-cli --allow-scripts
 - `Python` + `pynvim` - for Python provider
 - `Ruby` - for Ruby provider
 - `tree-sitter` CLI - `npm install -g tree-sitter-cli`
+- **JDK 25+ for current JDTLS**. This runs the Java language server; projects can still target Java 8/17/21. The config first checks `~/.local/share/nvim/jdtls-jdk/bin/java`, then compatible system JDKs and `JAVA_HOME`.
+
+## Java completion
+
+Type `enum`, `interface`, `record`, `abstract`, `annotation`, or `method` and select the **Snippet** completion for a full declaration. `Enter` accepts it; `Tab` / `Shift-Tab` move between fields. Records require a project targeting Java 16 or newer. `Ctrl-Space` opens completion manually.
+
+`JavaProject` creates a simple or Maven project; `JavaClass User models` creates an importable `models.User` class in a simple project. `JavaClass Status enums` creates an enum. `F5` builds/runs the current file; `F6` runs Spring projects or opens the compiler menu.
 
 ## Installation
 
@@ -99,7 +106,7 @@ npm install -g tree-sitter-cli --allow-scripts
 
 If you use `Sway`/`SwayFX` with `Kitty`:
 
-- `kitty.conf` needs `kitty_keyboard_mode 3` for distinct `Ctrl-Shift-z` (already set)
+- Use a terminal with the Kitty keyboard protocol for distinct `Ctrl-Shift-z`; Neovim negotiates this automatically with supported Kitty versions.
 - `sway/config` uses `Alt` as `$mod` (`Mod1`), `Alt+Arrows` + `Alt+h/l` for focus, `Alt+Shift+...` for move to keep `Alt-j/k` free for nvim. `Super` for `browser` etc.
 - After changing `sway/config`: `swaymsg reload`
 
@@ -107,12 +114,16 @@ If you use `Sway`/`SwayFX` with `Kitty`:
 
 ```sh
 stylua --check lua/
+bash tests/run_all.sh
+# Optional: also test a live Java language server (JDTLS and JDK 25+ required)
+NVIM_TEST_JAVA_LSP=1 bash tests/run_all.sh
 nvim --headless -c "lua print('ok')" -c "qa"
 # LSP
 nvim --headless "+checkhealth vim.lsp" "+qa"
 ```
 
+The test runner checks syntax, formatting/linting when tools are installed, keymaps, plugin startup, transparency, Java snippets/scaffolding, task commands, and bounded Spring project detection. Failed checks return a nonzero exit status. It requires the plugins to be installed first; it does not run builds in your projects.
+
 ## Customization
 
 See `lua/config/options.lua` for editor options, `lua/config/keymaps.lua` for keymaps, `lua/plugins/` for plugin overrides. `lazyvim.json` lists enabled `extras` (add/remove e.g. `lazyvim.plugins.extras.lang.python`).
-

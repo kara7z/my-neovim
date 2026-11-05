@@ -1,6 +1,21 @@
 return {
   "saghen/blink.cmp",
   opts = {
+    sources = {
+      providers = {
+        snippets = {
+          opts = { use_label_description = true },
+        },
+      },
+    },
+    completion = {
+      documentation = { auto_show = true },
+      menu = {
+        draw = {
+          columns = { { "kind_icon" }, { "label", "label_description", gap = 1 }, { "kind" } },
+        },
+      },
+    },
     keymap = {
       preset = "enter",
       ["<Tab>"] = { LazyVim.cmp.map({ "snippet_forward", "ai_nes", "ai_accept" }), "select_next", "fallback" },

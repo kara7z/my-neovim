@@ -2,6 +2,28 @@
 -- Default options that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/options.lua
 -- Add any additional options here
 
+-- Void Linux providers: keep Python packages outside the managed system Python.
+for provider, path in pairs({
+  python3_host_prog = "~/.local/share/nvim-python/bin/python",
+  ruby_host_prog = "~/.local/share/gem/ruby/3.4.0/bin/neovim-ruby-host",
+  node_host_prog = "/usr/bin/neovim-node-host",
+}) do
+  path = vim.fn.expand(path)
+  if vim.fn.executable(path) == 1 then
+    vim.g[provider] = path
+  end
+end
+
+-- Filetypes are editor settings, not a second plenary init callback (which
+-- would overwrite the Java scaffolding commands during lazy.nvim's merge).
+vim.filetype.add({
+  pattern = {
+    [".*%.blade%.php"] = "blade",
+    [".*%.env%.[^/]+"] = { "sh", { priority = 100 } },
+  },
+  filename = { [".env"] = "sh" },
+})
+
 -- PHP LSP: use intelephense for stricter diagnostics (undefined vars/constants) instead of phpactor default
 vim.g.lazyvim_php_lsp = "intelephense"
 
