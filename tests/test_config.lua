@@ -129,6 +129,10 @@ local ok, err = xpcall(function()
     vim.tbl_isempty(standalone.settings.java.project.referencedLibraries),
     "standalone files do not search recursively for dependency jars"
   )
+  check(
+    vim.deep_equal(standalone.init_options.settings, standalone.settings),
+    "Java settings are sent during initialization before project discovery"
+  )
 
   local java = require("config.java")
   local plugins, extensions = temp .. "/plugins", temp .. "/extensions"

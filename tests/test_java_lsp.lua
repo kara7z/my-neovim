@@ -6,7 +6,11 @@ vim.fn.mkdir(source_dir, "p")
 local source = source_dir .. "/CompletionCheck.java"
 if single then
   vim.fn.mkdir(temp .. "/unrelated", "p")
-  vim.fn.writefile({ "<project><groupId>org.springframework.boot</groupId></project>" }, temp .. "/unrelated/pom.xml")
+  vim.fn.writefile({
+    '<project xmlns="http://maven.apache.org/POM/4.0.0">',
+    "<modelVersion>4.0.0</modelVersion><groupId>org.springframework.boot</groupId>",
+    "<artifactId>unrelated</artifactId><version>1.0</version></project>",
+  }, temp .. "/unrelated/pom.xml")
 end
 vim.fn.writefile({
   "public class CompletionCheck {",
@@ -36,6 +40,10 @@ local ok, err = xpcall(function()
   )
   if single then
     assert(client.config.settings.java.import.maven.enabled == false, "Standalone file imports nested Maven projects")
+    assert(
+      client.config.init_options.settings.java.import.maven.enabled == false,
+      "Standalone import exclusions were not sent during initialization"
+    )
     assert(#vim.lsp.get_clients({ name = "spring-boot" }) == 0, "Spring started for an unrelated nested project")
   end
   local seen = {}
@@ -62,6 +70,16 @@ local ok, err = xpcall(function()
     end),
     "Java method completions did not include println"
   )
+  if single then
+    local projects = client:request_sync("workspace/executeCommand", {
+      command = "java.project.getAll",
+      arguments = {},
+    }, 10000, 0)
+    assert(projects and not projects.err, "Could not inspect imported Java projects")
+    for _, uri in ipairs(projects.result or {}) do
+      assert(not uri:find("/unrelated", 1, true), "Standalone file imported an unrelated project: " .. uri)
+    end
+  end
   assert(
     client.config.capabilities.textDocument.completion.completionItem.snippetSupport,
     "JDTLS is not receiving snippet capabilities"

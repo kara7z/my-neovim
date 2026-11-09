@@ -326,7 +326,7 @@ return {
         local path = vim.uv.fs_realpath(root) or vim.fs.normalize(root)
         -- Keep standalone files away from old metadata that may have imported
         -- unrelated projects from the whole parent directory. Do not wipe it.
-        local kind = require("config.java").is_project(path) and "-" or "-single-"
+        local kind = require("config.java").is_project(path) and "-" or "-single-v2-"
         return vim.fs.basename(path) .. kind .. vim.fn.sha256(path):sub(1, 12)
       end
 
@@ -402,6 +402,10 @@ return {
             },
           })
         end
+        -- JDTLS discovers projects during initialize, before Neovim sends
+        -- workspace/didChangeConfiguration. Apply import exclusions and JDK
+        -- settings before that first scan, not only after it has completed.
+        config.init_options.settings = vim.deepcopy(config.settings)
         return config
       end
 
