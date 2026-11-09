@@ -7,6 +7,18 @@
 -- Or remove existing autocmds by their group name (which is prefixed with `lazyvim_` for the defaults)
 -- e.g. vim.api.nvim_del_augroup_by_name("lazyvim_wrap_spell")
 
+-- Documentation may mix languages; avoid English spellcheck on French prose.
+vim.api.nvim_create_autocmd("FileType", {
+  group = vim.api.nvim_create_augroup("user_markdown_no_spell", { clear = true }),
+  pattern = { "markdown", "markdown.mdx" },
+  callback = function()
+    vim.opt_local.spell = false
+  end,
+})
+if vim.bo.filetype == "markdown" or vim.bo.filetype == "markdown.mdx" then
+  vim.opt_local.spell = false
+end
+
 -- Terminal performance: :terminal typing delay fix.
 -- Root cause: global cursorline/scrolloff/sidescrolloff/foldmethod=indent leak into
 -- terminal windows and force full redraw + fold recompute on every keystroke.

@@ -4,9 +4,8 @@ return {
     opts = {
       linters = {
         ["markdownlint-cli2"] = {
-          condition = function(ctx)
-            local name = vim.fs.basename(ctx.filename):lower()
-            return name ~= "readme" and not name:match("^readme%.")
+          condition = function()
+            return false
           end,
         },
       },
