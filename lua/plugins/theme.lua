@@ -95,6 +95,11 @@ return {
         FlashMatch = { fg = "#CECDC3", bg = "#403E3C", bold = true },
         FlashCurrent = { fg = "#100F0F", bg = "#DFB431", bold = true },
         FlashLabel = { fg = "#100F0F", bg = "#87D3C3", bold = true },
+        -- Ctrl+D multi-selections and cursors use the Flexoki palette.
+        VM_Extend = { fg = "#CECDC3", bg = "#3A301D" },
+        VM_Cursor = { fg = "#100F0F", bg = "#DFB431", bold = true },
+        VM_Mono = { fg = "#100F0F", bg = "#DFB431", bold = true },
+        VM_Insert = { fg = "#100F0F", bg = "#87D3C3", bold = true },
         TabLine = { fg = "#878580", bg = "NONE" },
         TabLineFill = { bg = "NONE" },
         TabLineSel = { fg = "#D0A215", bg = "NONE", bold = true },

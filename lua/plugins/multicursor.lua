@@ -9,7 +9,8 @@ return {
       ["Skip Region"] = "q",
       ["Remove Region"] = "Q",
     }
-    vim.g.VM_theme = "iceblue"
+    -- Let the colorscheme define the VM highlights instead of a built-in palette.
+    vim.g.VM_theme = ""
     vim.g.VM_highlight_matches = "underline"
     vim.g.VM_case_setting = "sensitive"
     vim.g.VM_silent_exit = 1
