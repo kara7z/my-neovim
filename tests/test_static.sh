@@ -42,7 +42,7 @@ check "unknown CSS at-rules checked" grep -q unknownAtRules "$stack"
 check "shell escaping in runners" grep -q shellescape "$compiler"
 check "no raw double-quoted buffer paths" absent '" .. bufname .. "' "$compiler"
 check "Python prefers python3" grep -q 'executable("python3")' "$compiler"
-check "clipboard returns register type" grep -q getregtype "$options"
+check "clipboard uses native paste command" grep -q '"wl-paste --no-newline"' "$options"
 
 echo "$pass passed, $fail failed"
 exit "$((fail > 0))"

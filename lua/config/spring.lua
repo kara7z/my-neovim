@@ -1,5 +1,6 @@
 local M = {}
 local bursts = {}
+local pending = {}
 
 function M.root_dir(buffer, on_dir)
   local name = vim.fs.basename(vim.api.nvim_buf_get_name(buffer))
@@ -44,10 +45,24 @@ local function forward(spring, command, arguments)
   for _, client in ipairs(vim.lsp.get_clients({ name = "jdtls" })) do
     if client.config.root_dir == spring.config.root_dir then
       client:request("workspace/executeCommand", { command = command, arguments = arguments }, function() end)
-      return
+      return true
     end
   end
 end
+
+vim.api.nvim_create_autocmd("LspAttach", {
+  group = vim.api.nvim_create_augroup("user_spring_pending_listeners", { clear = true }),
+  callback = function()
+    for command, spring in pairs(pending) do
+      if spring:is_stopped() then
+        pending[command] = nil
+        vim.lsp.commands[command] = nil
+      elseif forward(spring, "sts.java.addClasspathListener", { command }) then
+        pending[command] = nil
+      end
+    end
+  end,
+})
 
 M.handlers = {
   ["sts/addClasspathListener"] = function(_, result, ctx)
@@ -64,7 +79,9 @@ M.handlers = {
       end
       return vim.NIL
     end
-    forward(spring, "sts.java.addClasspathListener", { command })
+    if not forward(spring, "sts.java.addClasspathListener", { command }) then
+      pending[command] = spring
+    end
     -- The listener is registered asynchronously. An immediate null response is
     -- valid and avoids the plugin's nested vim.wait(8000) blocking user input.
     return vim.NIL
@@ -76,7 +93,11 @@ M.handlers = {
     end
     local command = result.callbackCommandId
     vim.lsp.commands[command] = nil
-    forward(spring, "sts.java.removeClasspathListener", { command })
+    if pending[command] then
+      pending[command] = nil
+    else
+      forward(spring, "sts.java.removeClasspathListener", { command })
+    end
     return vim.NIL
   end,
 }

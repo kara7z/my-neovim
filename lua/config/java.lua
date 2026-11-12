@@ -22,7 +22,8 @@ function M.is_project(root)
     )
 end
 
-function M.is_spring_project(root)
+local spring_cache = {}
+local function scan_spring_project(root)
   -- A standalone file in $HOME is not a Spring workspace just because an
   -- unrelated project somewhere below $HOME depends on Spring.
   if not M.has_build_file(root) then
@@ -59,6 +60,29 @@ function M.is_spring_project(root)
   end
   return false
 end
+
+function M.is_spring_project(root)
+  if type(root) ~= "string" or root == "" then
+    return false
+  end
+  local now = vim.uv.hrtime()
+  local cached = spring_cache[root]
+  if cached and now - cached.time < 2000000000 then
+    return cached.result
+  end
+  local result = scan_spring_project(root)
+  spring_cache[root] = { time = now, result = result }
+  return result
+end
+
+vim.api.nvim_create_autocmd("BufWritePost", {
+  group = vim.api.nvim_create_augroup("user_spring_detection_cache", { clear = true }),
+  pattern = build_files,
+  callback = function()
+    -- A nested module build file may change any ancestor's classification.
+    spring_cache = {}
+  end,
+})
 
 local function bundle_name(path)
   local name = vim.fs.basename(path)

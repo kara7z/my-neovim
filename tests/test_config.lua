@@ -96,6 +96,14 @@ local ok, err = xpcall(function()
   )
   vim.cmd("JavaProject com..broken invalid")
   check(vim.fn.isdirectory(temp .. "/invalid") == 0, "empty Java package segments are rejected")
+  for _, name in ipairs({ "class", "null", "_", "record", "var", "yield", "sealed", "permits" }) do
+    vim.cmd("JavaClass " .. name)
+    check(vim.fn.filereadable(temp .. "/sample/src/" .. name .. ".java") == 0, "invalid Java type rejected: " .. name)
+  end
+  vim.cmd("JavaProject com.class keyword-package")
+  check(vim.fn.isdirectory(temp .. "/keyword-package") == 0, "Java package keywords are rejected")
+  vim.cmd("JavaClass User class")
+  check(vim.fn.isdirectory(temp .. "/sample/src/class") == 0, "Java folder package keywords are rejected")
   vim.cmd("JavaProject com.example maven-sample")
   local pom = table.concat(vim.fn.readfile(temp .. "/maven-sample/pom.xml"), "\n")
   check(pom:find("maven-compiler-plugin", 1, true) ~= nil, "generated Maven projects support compiler.release")
@@ -192,6 +200,26 @@ local ok, err = xpcall(function()
   )
   check(tasks[1].stopped and not unrelated_stopped, "F5 replaces only its own previous task")
 
+  -- Maven saves only its project buffers, not scratch notes or sibling projects.
+  local scratch = vim.api.nvim_create_buf(true, false)
+  vim.api.nvim_buf_set_lines(scratch, 0, -1, false, { "unsaved scratch notes" })
+  local other = vim.api.nvim_create_buf(true, false)
+  local other_file = temp .. "/maven-sample-other/Other.java"
+  write(other_file, { "original" })
+  vim.api.nvim_buf_set_name(other, other_file)
+  vim.api.nvim_buf_set_lines(other, 0, -1, false, { "unrelated edits" })
+  local project_file = temp .. "/maven-sample/src/main/java/com/example/Main.java"
+  edit(project_file, "java")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "// latest project edits" })
+  local task_count = #tasks
+  local maven_ok, maven_err = pcall(vim.cmd, "MavenCompile")
+  check(maven_ok and #tasks == task_count + 1, "Maven ignores unnamed scratch buffers: " .. tostring(maven_err))
+  check(vim.fn.readfile(project_file)[1] == "// latest project edits", "Maven saves modified project files")
+  check(vim.bo[scratch].modified, "Maven leaves scratch notes unsaved")
+  check(vim.fn.readfile(other_file)[1] == "original" and vim.bo[other].modified, "Maven does not save sibling projects")
+  vim.api.nvim_buf_delete(scratch, { force = true })
+  vim.api.nvim_buf_delete(other, { force = true })
+
   local cpp_file = temp .. "/C++ quotes/$cash's.cpp"
   write(cpp_file, { "int main() { return 0; }" })
   edit(cpp_file, "cpp")
@@ -212,6 +240,20 @@ local ok, err = xpcall(function()
   write(temp .. "/unrelated/pom.xml", { "<project><groupId>org.springframework.boot</groupId></project>" })
   check(filter(temp) == false, "Spring ignores unrelated descendant projects")
   check(filter(temp .. "/unrelated") == true, "actual Spring projects still enable Spring tooling")
+  local original_readfile = vim.fn.readfile
+  local reads = 0
+  vim.fn.readfile = function(...)
+    reads = reads + 1
+    return original_readfile(...)
+  end
+  local cached_spring = filter(temp .. "/unrelated")
+  vim.fn.readfile = original_readfile
+  check(cached_spring and reads == 0, "repeated Spring detection reuses cached classification")
+  write(temp .. "/unrelated/pom.xml", { "<project/>" })
+  vim.api.nvim_exec_autocmds("BufWritePost", { pattern = temp .. "/unrelated/pom.xml" })
+  check(filter(temp .. "/unrelated") == false, "build-file save invalidates Spring detection cache")
+  write(temp .. "/unrelated/pom.xml", { "<project><groupId>org.springframework.boot</groupId></project>" })
+  vim.api.nvim_exec_autocmds("BufWritePost", { pattern = temp .. "/unrelated/pom.xml" })
   local budget_root = temp .. "/scan-budget"
   write(budget_root .. "/pom.xml", { "<project/>" })
   local scan, next_entry, readfile = vim.uv.fs_scandir, vim.uv.fs_scandir_next, vim.fn.readfile

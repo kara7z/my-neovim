@@ -39,11 +39,21 @@ return {
         return name:find("%.") ~= nil
       end
 
+      local reserved = {}
+      local keywords = [[abstract assert boolean break byte case catch char class const continue default do
+        double else enum extends final finally float for goto if implements import instanceof int
+        interface long native new package private protected public return short static strictfp super
+        switch synchronized this throw throws transient try void volatile while true false null _]]
+      for word in keywords:gmatch("%S+") do
+        reserved[word] = true
+      end
+      local restricted_types = { var = true, yield = true, record = true, sealed = true, permits = true }
+
       ---@param name string
       ---@return boolean
       local function valid_ident(name)
         -- Java allows letters, _, $ start; letters/digits/underscore/$ rest.
-        return name:match("^[%a_$][%w_$]*$") ~= nil
+        return name:match("^[%a_$][%w_$]*$") ~= nil and not reserved[name]
       end
 
       local function valid_package(name)
@@ -311,7 +321,7 @@ public class Main {
           pkg = ""
         end
 
-        if not valid_ident(class) or (pkg ~= "" and not valid_package(pkg)) then
+        if not valid_ident(class) or restricted_types[class] or (pkg ~= "" and not valid_package(pkg)) then
           vim.notify("JavaClass: invalid class name '" .. class .. "'", vim.log.levels.ERROR)
           return
         end

@@ -101,6 +101,7 @@ return {
             local task = overseer.new_task({
               cmd = cmd,
               name = '- Build program → "' .. bufname .. '"',
+              cwd = project_root_for(bufname),
               components = silent_components,
             })
             task:start()
@@ -122,6 +123,7 @@ return {
             local task = overseer.new_task({
               cmd = cmd,
               name = '- Run program → "' .. output .. '"',
+              cwd = project_root_for(bufname),
               components = silent_components,
             })
             task:start()
@@ -182,6 +184,7 @@ return {
             local task = overseer.new_task({
               cmd = cmd,
               name = '- Build program → "' .. bufname .. '"',
+              cwd = project_root_for(bufname),
               components = silent_components,
             })
             task:start()
@@ -202,6 +205,7 @@ return {
             local task = overseer.new_task({
               cmd = cmd,
               name = '- Run program → "' .. output .. '"',
+              cwd = project_root_for(bufname),
               components = silent_components,
             })
             task:start()

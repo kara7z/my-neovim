@@ -4,7 +4,14 @@ return {
   {
     "JavaHello/spring-boot.nvim",
     ft = { "java", "yaml", "jproperties" },
-    dependencies = { "mfussenegger/nvim-jdtls" },
+    config = function(_, opts)
+      local spring = require("spring_boot")
+      -- YAML must not load nvim-jdtls: LazyVim attaches it to the current
+      -- buffer on initialization. Spring can dispatch client commands itself.
+      vim.lsp.handlers["workspace/executeClientCommand"] = vim.lsp.handlers["workspace/executeClientCommand"]
+        or spring.execute_client_command
+      spring.setup(opts)
+    end,
     opts = {
       server = {
         handlers = require("config.spring").handlers,

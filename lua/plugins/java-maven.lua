@@ -7,16 +7,8 @@
 return {
   {
     "stevearc/overseer.nvim",
-    cmd = {
-      "MavenClean",
-      "MavenCompile",
-      "MavenTest",
-      "MavenPackage",
-      "MavenInstall",
-      "MavenSpringBootRun",
-      "MavenRun",
-      "Maven",
-    },
+    -- Commands are registered in init below and load Overseer through require.
+    -- Lazy cmd stubs would delete those real commands when Overseer loads.
     -- stylua: ignore
     keys = {
       { "<leader>jmc", "<cmd>MavenCompile<cr>", desc = "Maven: compile" },
@@ -41,10 +33,32 @@ return {
         return vim.fn.getcwd()
       end
       local function run_mvn(args, name)
-        -- Compile the latest edits, including other modified project buffers.
-        vim.cmd("silent wall")
-        local overseer = require("overseer")
         local root = project_root()
+        local prefix = vim.fs.normalize(root):gsub("/$", "") .. "/"
+        -- Save project files only; unnamed notes and unrelated buffers must
+        -- neither block the build nor be written as a side effect.
+        for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+          if vim.api.nvim_buf_is_loaded(buf) then
+            local path = vim.fs.normalize(vim.api.nvim_buf_get_name(buf))
+            local options = vim.bo[buf]
+            if
+              path:sub(1, #prefix) == prefix
+              and options.buftype == ""
+              and options.modified
+              and options.modifiable
+              and not options.readonly
+            then
+              local ok, err = pcall(vim.api.nvim_buf_call, buf, function()
+                vim.cmd("silent update")
+              end)
+              if not ok then
+                vim.notify("Maven: cannot save " .. path .. ": " .. tostring(err), vim.log.levels.ERROR)
+                return
+              end
+            end
+          end
+        end
+        local overseer = require("overseer")
         local wrapper = root .. "/mvnw"
         local mvn = vim.fn.executable(wrapper) == 1 and wrapper or "mvn"
         local task = overseer.new_task({

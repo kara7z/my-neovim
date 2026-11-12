@@ -152,7 +152,7 @@ local optf = io.open(config_dir .. "/lua/config/options.lua", "r")
 if optf then
   local src = optf:read("*a")
   optf:close()
-  ok(src:find("getregtype") ~= nil, "clipboard paste returns regtype")
+  ok(src:find('"wl-paste --no-newline"', 1, true) ~= nil, "clipboard uses native paste command")
 else
   ok(false, "can open options.lua")
 end

@@ -38,14 +38,10 @@ if vim.fn.executable("wl-copy") == 1 and vim.fn.executable("wl-paste") == 1 then
       ["*"] = "wl-copy --foreground --type text/plain --primary",
     },
     paste = {
-      ["+"] = function()
-        local lines = vim.fn.systemlist('wl-paste --no-newline 2>/dev/null | tr -d "\r"')
-        return { lines, vim.fn.getregtype("+") }
-      end,
-      ["*"] = function()
-        local lines = vim.fn.systemlist('wl-paste --primary --no-newline 2>/dev/null | tr -d "\r"')
-        return { lines, vim.fn.getregtype("*") }
-      end,
+      -- Let Neovim infer register types and retain cached blockwise metadata.
+      -- Calling getregtype here would recursively invoke this same provider.
+      ["+"] = "wl-paste --no-newline",
+      ["*"] = "wl-paste --primary --no-newline",
     },
     cache_enabled = 1,
   }
@@ -61,9 +57,8 @@ vim.opt.undofile = true
 vim.opt.conceallevel = 0
 vim.opt.spelllang = { "en" }
 
--- Keep the cursor steady, including terminals used to run Spring Boot.
--- Neovim's terminal-mode default otherwise overrides Kitty's no-blink setting.
-vim.opt.guicursor = "n-v-c-sm:block,i-ci-ve:ver25,r-cr-o:hor20,t:block-TermCursor,a:blinkon0"
+-- Use a blinking vertical bar in Insert mode and a block in Normal mode.
+vim.opt.guicursor = "n-v-c-sm:block,i-ci-ve:ver25,r-cr-o:hor20,t:block-TermCursor,a:blinkwait500-blinkoff400-blinkon400"
 
 -- Undo/redo history for 200+ steps (default 10000, keep high for 200 redo via 200Ctrl-Shift-z)
 vim.opt.undolevels = 10000

@@ -11,8 +11,9 @@ return {
 
     local group = vim.api.nvim_create_augroup("user_session_resume", { clear = true })
     local ready = false
+    local dirty = true
     local function save()
-      if not ready or not persistence.active() or #vim.api.nvim_list_uis() == 0 then
+      if not dirty or not ready or not persistence.active() or #vim.api.nvim_list_uis() == 0 then
         return
       end
       for _, buf in ipairs(vim.api.nvim_list_bufs()) do
@@ -25,10 +26,17 @@ return {
           local ok, err = pcall(persistence.save)
           if not ok then
             vim.notify("Could not save Neovim session: " .. tostring(err), vim.log.levels.WARN)
+          else
+            dirty = false
           end
           return
         end
       end
+    end
+    local debounce = vim.uv.new_timer()
+    local function schedule_save()
+      dirty = true
+      debounce:start(500, 0, vim.schedule_wrap(save))
     end
 
     vim.api.nvim_create_autocmd("VimEnter", {
@@ -49,6 +57,8 @@ return {
           callback = function()
             timer:stop()
             timer:close()
+            debounce:stop()
+            debounce:close()
           end,
         })
       end,
@@ -59,10 +69,17 @@ return {
         vim.g.session_resume_stdin = true
       end,
     })
-    vim.api.nvim_create_autocmd({ "BufEnter", "WinEnter", "TabEnter", "BufWritePost", "FocusLost", "CursorHold" }, {
+    vim.api.nvim_create_autocmd({ "BufEnter", "WinEnter", "TabEnter", "BufWritePost", "WinResized", "DirChanged" }, {
       group = group,
       callback = function()
-        vim.schedule(save)
+        schedule_save()
+      end,
+    })
+    vim.api.nvim_create_autocmd({ "CursorHold", "FocusLost" }, {
+      group = group,
+      callback = function()
+        -- Cursor/fold state can change without a buffer or layout event.
+        schedule_save()
       end,
     })
   end,

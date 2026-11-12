@@ -62,42 +62,41 @@ end
 vim.keymap.set("n", "<A-j>", move_line_down, { desc = "Move line down", silent = true })
 vim.keymap.set("n", "<A-k>", move_line_up, { desc = "Move line up", silent = true })
 
--- Insert: move current line, stay in insert (supports v:count, noautocmd suppresses brace match flash)
-vim.keymap.set(
-  "i",
-  "<A-j>",
-  "<esc><cmd>silent! keepjumps execute 'm .+' . v:count1<cr><cmd>noautocmd silent! normal! ==<cr>gi",
-  { desc = "Move line down", silent = true }
-)
-vim.keymap.set(
-  "i",
-  "<A-k>",
-  "<esc><cmd>silent! keepjumps execute 'm .-' . (v:count1+1)<cr><cmd>noautocmd silent! normal! ==<cr>gi",
-  { desc = "Move line up", silent = true }
-)
+-- Insert: reuse the same boundary/readonly guards without leaving Insert mode.
+vim.keymap.set("i", "<A-j>", move_line_down, { desc = "Move line down", silent = true })
+vim.keymap.set("i", "<A-k>", move_line_up, { desc = "Move line up", silent = true })
 
--- Visual: move block (1 line or more) — string mapping uses '<,'> marks set on leaving Visual
--- via :<C-u>, so multi-line selections (e.g. V2j selects 3 lines) move as a whole;
--- v:count1 handles "2 Alt-j" to move block by 2, silent!+keepjumps suppresses E16, noautocmd suppresses brace flash
-vim.keymap.set(
-  "x",
-  "<A-j>",
-  ":<C-u>silent! keepjumps execute \"'<,'>move '>+\" . v:count1<cr>:noautocmd silent! normal! gv=gv<cr>",
-  { desc = "Move selection down", silent = true }
-)
-vim.keymap.set(
-  "x",
-  "<A-k>",
-  ":<C-u>silent! keepjumps execute \"'<,'>move '<-\" . (v:count1 + 1)<cr>:noautocmd silent! normal! gv=gv<cr>",
-  { desc = "Move selection up", silent = true }
-)
+-- Visual: guard before leaving the selection, then move/reindent as one undo.
+-- :<C-u> sets '<,'> marks; counts move the entire selection by that many lines.
+local function move_selection(down)
+  if not vim.bo.modifiable or vim.bo.readonly then
+    return ""
+  end
+  local anchor = vim.fn.line("v")
+  local cursor = vim.fn.line(".")
+  local first, last = math.min(anchor, cursor), math.max(anchor, cursor)
+  local count = vim.v.count1
+  if (down and last + count > vim.api.nvim_buf_line_count(0)) or (not down and first - count < 1) then
+    return ""
+  end
+  local target = down and last + count or first - count - 1
+  return ":<C-u>silent keepjumps '<,'>move " .. target .. "<cr>:undojoin<cr>:noautocmd normal! gv=gv<cr>"
+end
+vim.keymap.set("x", "<A-j>", function()
+  return move_selection(true)
+end, { expr = true, desc = "Move selection down", silent = true })
+vim.keymap.set("x", "<A-k>", function()
+  return move_selection(false)
+end, { expr = true, desc = "Move selection up", silent = true })
 
 -- Ctrl-z Undo / Ctrl-y Redo
 -- NOTE: insert-mode <C-y> is reserved for blink.cmp select_and_accept
 -- (see lua/plugins/blink.lua). Mapping it to redo here would shadow
 -- completion confirm and break Enter/Tab flow after VeryLazy loads.
-vim.keymap.set({ "n", "v" }, "<C-z>", "u", { desc = "Undo", silent = true })
+vim.keymap.set("n", "<C-z>", "u", { desc = "Undo", silent = true })
+vim.keymap.set("x", "<C-z>", "<Esc>u", { desc = "Undo", silent = true })
 vim.keymap.set("i", "<C-z>", "<C-o>u", { desc = "Undo", silent = true })
-vim.keymap.set({ "n", "v" }, "<C-y>", "<C-r>", { desc = "Redo", silent = true })
+vim.keymap.set("n", "<C-y>", "<C-r>", { desc = "Redo", silent = true })
+vim.keymap.set("x", "<C-y>", "<Esc><C-r>", { desc = "Redo", silent = true })
 -- insert redo moved to <C-S-z> so <C-y> stays free for blink
 vim.keymap.set("i", "<C-S-z>", "<C-o><C-r>", { desc = "Redo", silent = true })
